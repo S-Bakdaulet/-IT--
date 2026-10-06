@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="О проекте IT-Professions: цели, как устроен сайт, используемые технологии и план развития.">
+  <meta name="theme-color" content="#0f172a">
+  <title>О проекте — IT Professions</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="container header__inner">
+      <a class="logo" href="index.html">IT-Professions</a>
+      <button class="burger" id="burger" aria-label="Открыть меню" aria-expanded="false" aria-controls="nav">☰</button>
+      <nav id="nav" aria-label="Основное меню">
+        <ul>
+          <li><a href="index.html">Главная</a></li>
+          <li><a href="index.html#catalog">Каталог</a></li>
+          <li><a href="index.html#salaries">Зарплаты</a></li>
+          <li><a href="index.html#faq">Вопросы</a></li>
+          <li><a href="about.html" class="active">О проекте</a></li>
+          <li><a class="button" href="index.html#apply">Записаться</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="container">
+      <h1>О нашем каталоге</h1>
+      <p>Данный проект создан для помощи студентам и начинающим специалистам в выборе будущей профессии в сфере информационных технологий.</p>
+      <div class="hero__actions">
+        <a class="button" href="index.html#catalog">Открыть каталог</a>
+        <a class="button button--ghost" href="index.html#apply">Записаться на курс</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <h2>Что мы предлагаем</h2>
+      <p class="section__lead">Понятный обзор популярных направлений, чтобы вы выбрали путь осознанно, а не наугад.</p>
+      <div class="cards">
+        <article class="card card--text">
+          <div class="card__icon">🧭</div>
+          <h3>Помощь в выборе</h3>
+          <p>Описание каждой профессии: чем занимается специалист, какие навыки нужны и какой уровень дохода можно ожидать.</p>
+        </article>
+        <article class="card card--text">
+          <div class="card__icon">⚖️</div>
+          <h3>Сравнение и тест</h3>
+          <p>Сравните до трёх профессий в одной таблице или пройдите короткий тест и узнайте, какие направления ближе к вашим склонностям.</p>
+        </article>
+        <article class="card card--text">
+          <div class="card__icon">🗺️</div>
+          <h3>Дорожные карты</h3>
+          <p>Для каждой профессии есть пошаговый план обучения: с чего начать, что изучать дальше и что положить в портфолио.</p>
+        </article>
+        <article class="card card--text">
+          <div class="card__icon">🎓</div>
+          <h3>Запись на курс</h3>
+          <p>Оставьте заявку на выбранное направление, и мы свяжемся с вами в удобное время.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--alt">
+    <div class="container">
+      <h2>Как это работает</h2>
+      <p class="section__lead">Четыре шага от интереса до начала обучения.</p>
+      <ol class="steps">
+        <li><strong>Изучите каталог.</strong> Откройте карточки профессий и сравните их между собой.</li>
+        <li><strong>Выберите направление.</strong> Посмотрите зарплаты, требования и дорожную карту.</li>
+        <li><strong>Оставьте заявку.</strong> Укажите имя, телефон, курс и удобное время для звонка.</li>
+        <li><strong>Начните обучение.</strong> Мы свяжемся с вами и расскажем о старте группы.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <h2>Проект в цифрах</h2>
+      <div class="stats">
+        <div><div class="stat__number" id="aboutProfessions">—</div><div class="stat__label">профессий в каталоге</div></div>
+        <div><div class="stat__number" id="aboutCategories">—</div><div class="stat__label">категорий</div></div>
+        <div><div class="stat__number">6</div><div class="stat__label">вопросов в тесте-подборе</div></div>
+        <div><div class="stat__number">3</div><div class="stat__label">профессии в одном сравнении</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--alt">
+    <div class="container">
+      <h2>Технологии проекта</h2>
+      <p class="section__lead">Сайт состоит из трёх частей: интерфейс, сервер и база данных.</p>
+      <div class="cards">
+        <article class="card card--text">
+          <div class="card__icon">🖥️</div>
+          <h3>Интерфейс</h3>
+          <p>HTML5, CSS3 (Grid, Flex, адаптивная вёрстка, тёмная тема) и JavaScript без сторонних библиотек.</p>
+          <div class="tags"><span class="tag">HTML</span><span class="tag">CSS</span><span class="tag">JavaScript</span></div>
+        </article>
+        <article class="card card--text">
+          <div class="card__icon">⚙️</div>
+          <h3>Сервер</h3>
+          <p>Python и Flask: приём заявок, проверка данных, защита от спама, API для админ-панели и экспорт в CSV.</p>
+          <div class="tags"><span class="tag">Python</span><span class="tag">Flask</span><span class="tag">REST API</span></div>
+        </article>
+        <article class="card card--text">
+          <div class="card__icon">🗄️</div>
+          <h3>База данных</h3>
+          <p>SQLite: таблица CourseRequests с именем, телефоном, курсом, уровнем, статусом и временем заявки. Просмотр через DBeaver.</p>
+          <div class="tags"><span class="tag">SQLite</span><span class="tag">SQL</span><span class="tag">DBeaver</span></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <h2>Планы развития</h2>
+      <p class="section__lead">Что можно добавить в проект дальше.</p>
+      <ol class="steps">
+        <li><strong>Переключатель языка.</strong> Версия сайта на казахском языке.</li>
+        <li><strong>Уведомления.</strong> Сообщение в Telegram при каждой новой заявке.</li>
+        <li><strong>Размещение в интернете.</strong> Flask-сервер в облаке, сайт на GitHub Pages.</li>
+        <li><strong>Личный кабинет.</strong> Избранные профессии и прогресс по дорожной карте.</li>
+      </ol>
+      <p class="note">Учебный проект. Все цифры зарплат ориентировочные.</p>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container">
+      <p>Шәріпбаев Бақдәулет. Семей, 2026 год.</p>
+    </div>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

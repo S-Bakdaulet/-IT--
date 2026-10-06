@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Админ-панель — IT Professions</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="container header__inner">
+      <a class="logo" href="index.html">IT-Professions</a>
+      <nav><ul><li><a href="index.html">← На сайт</a></li></ul></nav>
+    </div>
+  </header>
+
+  <main class="section">
+    <div class="container">
+      <h2 style="text-align:left">Заявки на курсы</h2>
+      <p class="section__lead" style="text-align:left;margin-left:0">
+        Если вы открыли эту страницу на своём компьютере через <code>python app.py</code>, токен не нужен.
+        На сервере в интернете введите значение переменной <code>ADMIN_TOKEN</code>.
+      </p>
+
+      <div class="admin-bar">
+        <label>Адрес сервера
+          <input type="text" id="api" placeholder="пусто = этот же сервер" autocomplete="off">
+        </label>
+        <label>Токен администратора
+          <input type="password" id="token" placeholder="необязательно на localhost" autocomplete="off">
+        </label>
+        <button class="button" type="button" id="load">Загрузить</button>
+      </div>
+      <div class="form-status" id="msg" role="status" aria-live="polite"></div>
+
+      <div id="dash" hidden>
+        <div class="stats" id="tiles"></div>
+
+        <div class="cards" style="margin-top:28px">
+          <div class="card card--text"><h3>Заявки по курсам</h3><div class="bars" id="byCourse"></div></div>
+          <div class="card card--text"><h3>Последние 14 дней</h3><div class="spark" id="spark"></div><p class="note" id="sparkNote" style="text-align:left"></p></div>
+        </div>
+
+        <div class="filters">
+          <input type="search" id="q" placeholder="Поиск: имя, телефон, почта, комментарий" aria-label="Поиск">
+          <select id="fCourse" aria-label="Курс"><option value="">Все курсы</option></select>
+          <select id="fStatus" aria-label="Статус">
+            <option value="">Все статусы</option>
+            <option value="new">Новые</option>
+            <option value="contacted">Связались</option>
+            <option value="enrolled">Записаны</option>
+            <option value="rejected">Отказ</option>
+          </select>
+          <button class="button button--ghost" type="button" id="export">Скачать CSV</button>
+        </div>
+
+        <p class="result-count" id="count"></p>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr>
+              <th>№</th><th>Дата</th><th>Имя</th><th>Контакты</th><th>Курс</th><th>Детали</th><th>Статус</th><th></th>
+            </tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+  (function () {
+    'use strict';
+    var $ = function (s) { return document.querySelector(s); };
+    var LABELS = { 'new': 'Новая', contacted: 'Связались', enrolled: 'Записан', rejected: 'Отказ' };
+
+    // Адрес сервера запоминаем надолго, токен — только до закрытия вкладки.
+    // Если хранилище недоступно, страница всё равно работает.
+    function read(key) { try { return sessionStorage.getItem(key) || localStorage.getItem(key) || ''; } catch (e) { return ''; } }
+    function write(key, val) { try { (key === 'admin_token' ? sessionStorage : localStorage).setItem(key, val); } catch (e) { /* ignore */ } }
+
+    var isLocalDev = ['localhost', '127.0.0.1', ''].indexOf(location.hostname) !== -1;
+    $('#api').value = read('admin_api') || (isLocalDev && location.port !== '5000' ? 'http://127.0.0.1:5000' : '');
+    $('#token').value = read('admin_token');
+
+    function el(tag, text, cls) {
+      var e = document.createElement(tag);
+      if (text !== undefined && text !== null) e.textContent = text;
+      if (cls) e.className = cls;
+      return e;
+    }
+    function msg(text, bad) { var m = $('#msg'); m.textContent = text; m.className = 'form-status ' + (bad ? 'error' : 'success'); }
+    function base() { return $('#api').value.trim().replace(/\/+$/, ''); }
+    function when(s) { var d = new Date(String(s).replace(' ', 'T') + 'Z'); return isNaN(d) ? s : d.toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }); }
+
+    function api(path, opts) {
+      opts = opts || {};
+      opts.headers = Object.assign({ 'X-Admin-Token': $('#token').value.trim() }, opts.headers || {});
+      return fetch(base() + path, opts);
+    }
+    function filters() {
+      var p = new URLSearchParams();
+      if ($('#q').value.trim()) p.set('q', $('#q').value.trim());
+      if ($('#fCourse').value) p.set('course', $('#fCourse').value);
+      if ($('#fStatus').value) p.set('status', $('#fStatus').value);
+      var s = p.toString();
+      return s ? '?' + s : '';
+    }
+
+    async function loadStats() {
+      var r = await api('/api/stats');
+      var j = await r.json();
+      if (!r.ok) throw new Error(j.message || 'Ошибка ' + r.status);
+      var d = j.data;
+      var tiles = $('#tiles');
+      tiles.textContent = '';
+      [['Всего заявок', d.total], ['Сегодня', d.today], ['За 7 дней', d.week], ['Новых', d.by_status['new'] || 0]].forEach(function (t) {
+        var box = el('div', null, 'tile');
+        box.appendChild(el('div', t[1], 'stat__number'));
+        box.appendChild(el('div', t[0], 'stat__label'));
+        tiles.appendChild(box);
+      });
+
+      var by = $('#byCourse');
+      by.textContent = '';
+      var max = Math.max.apply(null, [1].concat(d.by_course.map(function (c) { return c.count; })));
+      d.by_course.forEach(function (c) {
+        var row = el('div', null, 'bar-row');
+        row.appendChild(el('span', c.course));
+        var bar = el('i'); bar.style.width = (c.count / max * 100) + '%';
+        row.appendChild(bar);
+        row.appendChild(el('b', c.count));
+        by.appendChild(row);
+      });
+      if (!d.by_course.length) by.appendChild(el('p', 'Пока нет данных', 'note'));
+
+      var sel = $('#fCourse'), keep = sel.value;
+      sel.textContent = '';
+      sel.appendChild(new Option('Все курсы', ''));
+      d.by_course.forEach(function (c) { sel.appendChild(new Option(c.course + ' (' + c.count + ')', c.course)); });
+      sel.value = keep;
+
+      var map = {}; d.by_day.forEach(function (x) { map[x.day] = x.count; });
+      var spark = $('#spark'); spark.textContent = '';
+      var days = [], now = new Date();
+      for (var i = 13; i >= 0; i--) { var dt = new Date(now.getTime() - i * 86400000); days.push(dt.toISOString().slice(0, 10)); }
+      var m2 = Math.max.apply(null, [1].concat(days.map(function (k) { return map[k] || 0; })));
+      days.forEach(function (k) {
+        var s = el('span'); s.style.height = Math.max(3, (map[k] || 0) / m2 * 100) + '%'; s.title = k + ': ' + (map[k] || 0);
+        spark.appendChild(s);
+      });
+      $('#sparkNote').textContent = 'Дни указаны по UTC. Наведите на столбик, чтобы увидеть число.';
+    }
+
+    async function loadRows() {
+      var r = await api('/api/requests' + filters());
+      var j = await r.json();
+      if (!r.ok) throw new Error(j.message || 'Ошибка ' + r.status);
+      var body = $('#rows'); body.textContent = '';
+      $('#count').textContent = 'Показано: ' + j.data.length + ' из ' + j.total;
+      j.data.forEach(function (x) {
+        var tr = document.createElement('tr');
+        tr.appendChild(el('td', x.id));
+        tr.appendChild(el('td', when(x.created_at)));
+        tr.appendChild(el('td', x.student_name));
+
+        var c = el('td');
+        if (x.phone) { var a = el('a', x.phone); a.href = 'tel:' + x.phone.replace(/[^\d+]/g, ''); c.appendChild(a); }
+        if (x.email) { c.appendChild(document.createElement('br')); var m = el('a', x.email); m.href = 'mailto:' + x.email; c.appendChild(m); }
+        tr.appendChild(c);
+
+        tr.appendChild(el('td', x.selected_course));
+
+        var det = el('td');
+        det.textContent = [x.level, x.contact_time].filter(Boolean).join(' · ');
+        if (x.comment) { det.appendChild(document.createElement('br')); det.appendChild(el('em', x.comment)); }
+        tr.appendChild(det);
+
+        var st = el('td');
+        var s = el('select', null, 'status-select');
+        s.setAttribute('aria-label', 'Статус заявки ' + x.id);
+        Object.keys(LABELS).forEach(function (k) { var o = new Option(LABELS[k], k); if (k === x.status) o.selected = true; s.appendChild(o); });
+        s.addEventListener('change', async function () {
+          var rr = await api('/api/requests/' + x.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: s.value }) });
+          if (rr.ok) { msg('Статус заявки №' + x.id + ' обновлён'); loadStats(); } else { msg('Не удалось изменить статус', true); }
+        });
+        st.appendChild(s);
+        tr.appendChild(st);
+
+        var act = el('td');
+        var del = el('button', 'Удалить', 'button button--small button--danger');
+        del.type = 'button';
+        del.addEventListener('click', async function () {
+          if (!confirm('Удалить заявку №' + x.id + ' (' + x.student_name + ')? Это нельзя отменить.')) return;
+          var rr = await api('/api/requests/' + x.id, { method: 'DELETE' });
+          if (rr.ok) { msg('Заявка №' + x.id + ' удалена'); refresh(); } else { msg('Не удалось удалить', true); }
+        });
+        act.appendChild(del);
+        tr.appendChild(act);
+        body.appendChild(tr);
+      });
+      if (!j.data.length) { var e = document.createElement('tr'); var td = el('td', 'Заявок не найдено'); td.colSpan = 8; e.appendChild(td); body.appendChild(e); }
+    }
+
+    async function refresh() {
+      try {
+        msg('Загрузка…');
+        await loadStats();
+        await loadRows();
+        $('#dash').hidden = false;
+        msg('');
+        write('admin_api', $('#api').value.trim());
+        write('admin_token', $('#token').value.trim());
+      } catch (err) {
+        $('#dash').hidden = true;
+        msg(err.message === 'Failed to fetch'
+          ? 'Сервер недоступен. Запустите python app.py и проверьте адрес.'
+          : err.message, true);
+      }
+    }
+
+    $('#load').addEventListener('click', refresh);
+    ['q'].forEach(function (id) { var t; $('#' + id).addEventListener('input', function () { clearTimeout(t); t = setTimeout(loadRows, 250); }); });
+    ['#fCourse', '#fStatus'].forEach(function (s) { $(s).addEventListener('change', function () { loadRows().catch(function (e) { msg(e.message, true); }); }); });
+
+    $('#export').addEventListener('click', async function () {
+      try {
+        var r = await api('/api/requests.csv' + filters());
+        if (!r.ok) throw new Error('Не удалось скачать файл (' + r.status + ')');
+        var blob = await r.blob();
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'course_requests.csv';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      } catch (err) { msg(err.message, true); }
+    });
+
+    refresh();
+  })();
+  </script>
+</body>
+</html>

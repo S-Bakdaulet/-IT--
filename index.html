@@ -6,6 +6,7 @@
   <meta name="description" content="Каталог IT-профессий: Frontend, Backend, UI/UX, Data, DevOps, QA и другие. Зарплаты, навыки, дорожные карты, подбор профессии и запись на курсы.">
   <meta name="theme-color" content="#0f172a">
   <title>Каталог IT-профессий — Главная</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -21,9 +22,11 @@
           <li><a href="index.html">Главная</a></li>
           <li><a href="#catalog">Каталог</a></li>
           <li><a href="#salaries">Зарплаты</a></li>
+          <li><a href="#ai-helper">ИИ-подбор</a></li>
           <li><a href="#faq">Вопросы</a></li>
           <li><a href="#contacts">Контакты</a></li>
           <li><a href="about.html">О проекте</a></li>
+          <li><a href="login.html" id="accountLink">Войти</a></li>
           <li><a class="button" href="#apply">Записаться</a></li>
         </ul>
       </nav>
@@ -81,6 +84,32 @@
       </div>
     </section>
 
+    <!-- ИИ-ПОДБОР (Transformers.js, работает в браузере) -->
+    <section class="section" id="ai-helper">
+      <div class="container">
+        <h2>ИИ-подбор профессии</h2>
+        <p class="section__lead">Опишите своими словами, что вам нравится делать. Языковая модель прямо в вашем браузере сравнит текст с описаниями профессий каталога и покажет три самых близких. Ничего не отправляется на сервер.</p>
+        <form class="form ai-box" id="aiForm" novalidate>
+          <label for="aiInput">Что вам нравится и что хотите уметь?
+            <textarea id="aiInput" name="interests" maxlength="500" rows="4" placeholder="Например: люблю рисовать интерфейсы в Figma и придумывать, как удобнее пользоваться сайтом"></textarea>
+          </label>
+          <div class="ai-meta"><span id="aiCount" aria-hidden="true">0 / 500</span></div>
+          <div class="ai-examples" role="group" aria-label="Примеры запросов">
+            <button type="button" class="chip" data-ai-example="Хочу защищать системы от взлома и искать уязвимости">Защита от взлома</button>
+            <button type="button" class="chip" data-ai-example="Нравится SQL, цифры и строить дашборды для бизнеса">SQL и дашборды</button>
+            <button type="button" class="chip" data-ai-example="Хочу делать игры на Unity и программировать механики">Игры на Unity</button>
+            <button type="button" class="chip" data-ai-example="Пишу сервер на Python, API и работаю с базами данных">Python и серверы</button>
+          </div>
+          <button type="submit" class="button" id="aiBtn">Подобрать профессию</button>
+          <div class="form-status error" id="aiError" role="alert" hidden></div>
+          <div class="ai-loader" id="aiLoader" hidden><progress id="aiProgress" max="100" aria-label="Загрузка модели"></progress></div>
+          <div class="form-status" id="aiStatus" role="status" aria-live="polite"></div>
+          <div id="aiResults" aria-live="polite" hidden></div>
+        </form>
+        <p class="note">При первом запуске скачивается небольшая модель (около 120 МБ), дальше она берётся из кэша браузера. Лучше всего понимает русский и английский. Результат — подсказка, а не точный диагноз.</p>
+      </div>
+    </section>
+
     <!-- ЗАРПЛАТЫ -->
     <section class="section" id="salaries">
       <div class="container">
@@ -110,28 +139,44 @@
     </section>
 
     <!-- КУРСҚА ЖАЗЫЛУ ФОРМАСЫ -->
-    <section class="section" id="apply">
+    <section class="section" id="levels">
+      <div class="container">
+        <h2>Выберите свой уровень</h2>
+        <p class="section__lead">Нажмите на подходящую карточку: уровень подставится в заявку, и вы сразу перейдёте к форме.</p>
+        <div class="levels" role="group" aria-label="Уровень подготовки">
+          <button class="level-card" type="button" data-level="Новичок (с нуля)">
+            <span class="level-card__tag">Уровень 1</span>
+            <strong>Новичок (с нуля)</strong>
+            <span>Начнём с азов: как устроен интернет, основы HTML/CSS, Excel и SQL, работа с Git.</span>
+          </button>
+          <button class="level-card" type="button" data-level="Знаю основы">
+            <span class="level-card__tag">Уровень 2</span>
+            <strong>Знаю основы</strong>
+            <span>Есть базовый синтаксис: закрепим практикой, соберём первый полноценный проект.</span>
+          </button>
+          <button class="level-card" type="button" data-level="Есть опыт">
+            <span class="level-card__tag">Уровень 3</span>
+            <strong>Есть опыт</strong>
+            <span>Углубление, архитектура, командная работа и подготовка к собеседованиям.</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- КУРСҚА ЖАЗЫЛУ ФОРМАСЫ -->
+    <section class="section section--alt" id="apply">
       <div class="container">
         <h2>Записаться на курс</h2>
-        <p class="section__lead">Оставьте заявку, и мы свяжемся с вами по телефону, чтобы рассказать о программе и ближайшем старте группы.</p>
+        <p class="section__lead">Выберите курс и удобную группу с расписанием. Администратор рассмотрит заявку, и её статус появится в разделе «Мои заявки».</p>
 
-        <form id="courseForm" class="form" novalidate>
-          <label>Имя и фамилия
-            <input type="text" id="studentName" name="name" placeholder="Например: Айдар Серіков" maxlength="80" autocomplete="name" required>
-            <span class="field-error" data-for="studentName"></span>
-          </label>
+        <p class="login-notice" id="loginNotice" hidden>
+          Чтобы записаться, <a href="login.html?next=index.html">войдите</a> или <a href="login.html?mode=register&next=index.html">создайте аккаунт</a>:
+          так вы сможете следить за статусом заявки.
+        </p>
 
-          <div class="form__row">
-            <label>Телефон
-              <input type="tel" id="studentPhone" name="phone" placeholder="+7 707 123 45 67" inputmode="tel" autocomplete="tel" required>
-              <span class="field-error" data-for="studentPhone"></span>
-            </label>
-            <label>Email <small>(необязательно)</small>
-              <input type="email" id="studentEmail" name="email" placeholder="name@example.com" maxlength="120" autocomplete="email">
-              <span class="field-error" data-for="studentEmail"></span>
-            </label>
-          </div>
+        <p class="platform-note">Курсы Frontend, Backend и Data Analyst проходят на платформе Stepik: кнопка «Записаться» в карточке такого курса сразу переведёт вас туда. На остальные курсы запишитесь через форму ниже.</p>
 
+        <form id="apply-form" class="form" novalidate>
           <label>Курс
             <select id="selectedCourse" name="course" required>
               <option value="" disabled selected>Выберите курс</option>
@@ -139,20 +184,23 @@
             <span class="field-error" data-for="selectedCourse"></span>
           </label>
 
+          <label>Группа и расписание
+            <select id="selectedGroup" name="group" required disabled>
+              <option value="" disabled selected>Сначала выберите курс</option>
+            </select>
+            <span class="field-error" data-for="selectedGroup"></span>
+          </label>
+
           <div class="form__row">
+            <label>Телефон
+              <input type="tel" id="studentPhone" name="phone" placeholder="+7 707 123 45 67" inputmode="tel" autocomplete="tel" required>
+              <span class="field-error" data-for="studentPhone"></span>
+            </label>
             <label>Ваш уровень
               <select id="studentLevel" name="level">
                 <option>Новичок (с нуля)</option>
                 <option>Знаю основы</option>
                 <option>Есть опыт</option>
-              </select>
-            </label>
-            <label>Удобное время для звонка
-              <select id="contactTime" name="contact_time">
-                <option>Любое время</option>
-                <option>Утром (9–12)</option>
-                <option>Днём (12–17)</option>
-                <option>Вечером (17–21)</option>
               </select>
             </label>
           </div>
@@ -177,7 +225,7 @@
     </section>
 
     <!-- FAQ -->
-    <section class="section section--alt" id="faq">
+    <section class="section" id="faq">
       <div class="container">
         <h2>Частые вопросы</h2>
         <p class="section__lead">Короткие ответы на то, о чём спрашивают чаще всего.</p>
@@ -200,7 +248,7 @@
           </details>
           <details>
             <summary>Как проходит запись на курс?</summary>
-            <p>Вы заполняете форму выше. Заявка сохраняется в базе данных, после этого мы связываемся с вами в удобное время и рассказываем о программе.</p>
+            <p>Вы входите в аккаунт, выбираете курс и группу с расписанием и отправляете заявку. Администратор одобряет её, когда в группе есть место. Статус виден в разделе «Мои заявки».</p>
           </details>
           <details>
             <summary>Откуда взяты зарплаты?</summary>
@@ -259,6 +307,7 @@
           <h4>Разделы</h4>
           <p><a href="#catalog">Каталог</a> · <a href="#salaries">Зарплаты</a></p>
           <p><a href="#apply">Запись на курс</a> · <a href="about.html">О проекте</a></p>
+          <p><a href="/teacher">Вход для преподавателей</a></p>
         </div>
       </div>
       <div class="footer__bottom">
@@ -268,6 +317,8 @@
   </footer>
 
   <script src="data.js"></script>
+  <script src="auth.js"></script>
   <script src="script.js"></script>
+  <script src="ai.js"></script>
 </body>
 </html>

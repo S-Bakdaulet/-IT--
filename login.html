@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Вход и регистрация — IT Professions</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="container header__inner">
+      <a class="logo" href="index.html">IT-Professions</a>
+      <nav><ul><li><a href="/teacher">Для преподавателей</a></li><li><a href="index.html">← На сайт</a></li></ul></nav>
+    </div>
+  </header>
+
+  <main class="section">
+    <div class="container">
+      <h2>Аккаунт</h2>
+      <p class="section__lead">Войдите, чтобы подать заявку на курс и видеть её статус. Администратор входит здесь же и попадает в админ-панель. Преподавателям — <a href="/teacher">отдельный вход</a>.</p>
+
+      <div class="tabs" role="tablist">
+        <button type="button" class="tab" role="tab" id="tabLogin" aria-selected="true">Вход</button>
+        <button type="button" class="tab" role="tab" id="tabReg" aria-selected="false">Регистрация</button>
+      </div>
+
+      <form class="form" id="authForm" novalidate>
+        <label id="nameRow" hidden>Имя и фамилия
+          <input type="text" id="name" maxlength="80" autocomplete="name" placeholder="Например: Айдар Серіков">
+        </label>
+        <label>Почта
+          <input type="email" id="email" maxlength="120" autocomplete="email" placeholder="name@example.com" required>
+        </label>
+        <label>Пароль <small id="passHint" hidden>(минимум 8 символов)</small>
+          <input type="password" id="password" maxlength="128" autocomplete="current-password" required>
+        </label>
+        <button type="submit" class="button" id="submit">Войти</button>
+        <div class="form-status" id="status" role="status" aria-live="polite"></div>
+      </form>
+      <p class="note" id="serverNote" hidden>
+        Аккаунты работают, когда сайт открыт с сервера: запустите <code>python app.py</code> и откройте
+        <code>http://127.0.0.1:5000</code>. На GitHub Pages сервера нет, поэтому входить там нельзя.
+      </p>
+    </div>
+  </main>
+
+  <script src="auth.js"></script>
+  <script>
+  (function () {
+    'use strict';
+    var $ = function (s) { return document.querySelector(s); };
+    var mode = 'login';
+    var params = new URLSearchParams(location.search);
+
+    function setMode(m) {
+      mode = m;
+      var reg = m === 'register';
+      $('#tabLogin').setAttribute('aria-selected', String(!reg));
+      $('#tabReg').setAttribute('aria-selected', String(reg));
+      $('#nameRow').hidden = !reg;
+      $('#passHint').hidden = !reg;
+      $('#password').setAttribute('autocomplete', reg ? 'new-password' : 'current-password');
+      $('#submit').textContent = reg ? 'Создать аккаунт' : 'Войти';
+      $('#status').textContent = '';
+    }
+    $('#tabLogin').addEventListener('click', function () { setMode('login'); });
+    $('#tabReg').addEventListener('click', function () { setMode('register'); });
+    if (params.get('mode') === 'register') setMode('register');
+
+    function show(text, ok) { var s = $('#status'); s.textContent = text; s.className = 'form-status ' + (ok ? 'success' : 'error'); }
+
+    // Уже вошли — сразу в нужное место
+    Auth.me().then(function (u) { if (u) go(u); else probe(); });
+    function probe() {
+      fetch('/api/me').then(function (r) { return r.json(); }).catch(function () { $('#serverNote').hidden = false; });
+    }
+    function go(u) {
+      location.href = safeNext(params.get('next'), u.home);
+    }
+
+    $('#authForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var email = $('#email').value.trim(), password = $('#password').value, name = $('#name').value.trim();
+      if (!email || !password) { show('Введите почту и пароль.', false); return; }
+      if (mode === 'register' && name.length < 2) { show('Введите имя и фамилию.', false); return; }
+      $('#submit').disabled = true;
+      show('Подождите…', true);
+      try {
+        var d = mode === 'register' ? await Auth.register(name, email, password) : await Auth.login(email, password);
+        show('Готово!', true);
+        go(d.user);
+      } catch (err) {
+        if (err.message === 'NO_SERVER') { $('#serverNote').hidden = false; show('Нет связи с сервером аккаунтов.', false); }
+        else show(err.message, false);
+      } finally {
+        $('#submit').disabled = false;
+      }
+    });
+  })();
+  </script>
+</body>
+</html>

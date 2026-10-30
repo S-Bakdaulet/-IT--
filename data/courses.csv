@@ -1,0 +1,13 @@
+﻿course_id,course_title,category,duration_months,base_price_kzt,stepik_redirect
+1,Frontend Developer,Разработка,6,150000,Да
+2,Backend Developer,Разработка,8,180000,Да
+3,UI/UX Designer,Дизайн,5,140000,Нет
+4,Fullstack Developer,Разработка,12,250000,Нет
+5,Mobile Developer,Разработка,8,200000,Нет
+6,Data Analyst,Данные и ИИ,5,130000,Да
+7,Data Scientist / ML,Данные и ИИ,12,280000,Нет
+8,DevOps Engineer,Инфраструктура и безопасность,10,260000,Нет
+9,QA Engineer,Качество,4,100000,Нет
+10,Cybersecurity Specialist,Инфраструктура и безопасность,12,240000,Нет
+11,Game Developer,Разработка,10,190000,Нет
+12,IT Project Manager,Управление,6,120000,Нет

@@ -19,6 +19,7 @@
           <li><a href="index.html">Главная</a></li>
           <li><a href="index.html#catalog">Каталог</a></li>
           <li><a href="index.html#salaries">Зарплаты</a></li>
+          <li><a href="index.html#ai-helper">ИИ-подбор</a></li>
           <li><a href="index.html#faq">Вопросы</a></li>
           <li><a href="about.html" class="active">О проекте</a></li>
           <li><a class="button" href="index.html#apply">Записаться</a></li>
@@ -106,13 +107,13 @@
         <article class="card card--text">
           <div class="card__icon">⚙️</div>
           <h3>Сервер</h3>
-          <p>Python и Flask: приём заявок, проверка данных, защита от спама, API для админ-панели и экспорт в CSV.</p>
+          <p>Python и Flask: роли, группы и расписание, заявки со статусами, кабинет преподавателя, админ-панель и экспорт в CSV.</p>
           <div class="tags"><span class="tag">Python</span><span class="tag">Flask</span><span class="tag">REST API</span></div>
         </article>
         <article class="card card--text">
           <div class="card__icon">🗄️</div>
           <h3>База данных</h3>
-          <p>SQLite: таблица CourseRequests с именем, телефоном, курсом, уровнем, статусом и временем заявки. Просмотр через DBeaver.</p>
+          <p>SQLite со связями: Users (студенты, преподаватели, админы), Courses, Groups и Enrollments. Просмотр через DBeaver.</p>
           <div class="tags"><span class="tag">SQLite</span><span class="tag">SQL</span><span class="tag">DBeaver</span></div>
         </article>
       </div>
@@ -140,6 +141,7 @@
   </footer>
 
   <script src="data.js"></script>
+  <script src="auth.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

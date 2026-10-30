@@ -29,8 +29,73 @@
   const dots = (n) => '●'.repeat(n) + '○'.repeat(5 - n);
   const byId = (id) => PROFS.find((p) => p.id === id);
   const catName = (id) => (CATS.find((c) => c.id === id) || {}).name || '';
+  const fmtDate = (d) => { const x = new Date(d + 'T00:00:00'); return isNaN(x) ? d : x.toLocaleDateString('ru-RU'); };
   const list = (items) => '<ul>' + items.map((i) => '<li>' + esc(i) + '</li>').join('') + '</ul>';
   const tags = (items) => '<div class="tags">' + items.map((i) => '<span class="tag">' + esc(i) + '</span>').join('') + '</div>';
+
+  // ---------- Курсы, цены и группы с сервера ----------
+  // Карточки каталога строятся из data.js, а цены и группы приходят из /api/courses.
+  // Связь: Courses.catalog_id == id профессии в data.js. Если сервер недоступен,
+  // каталог всё равно работает, просто без цен и расписания.
+  const Auth = window.Auth;
+  const store = { courses: [], byCatalog: {}, byId: {}, me: null };
+
+  function groupLabel(g, c) {
+    return g.schedule_time + ' · старт ' + fmtDate(g.start_date) + (c && c.duration ? ' · ' + c.duration : '') +
+      (g.seats_left > 0 ? ' · мест: ' + g.seats_left : ' · мест нет');
+  }
+
+  async function loadCourses() {
+    try {
+      store.courses = await Auth.courses();
+    } catch (err) {
+      store.courses = [];
+    }
+    store.byCatalog = {};
+    store.byId = {};
+    store.courses.forEach((c) => { store.byId[c.id] = c; if (c.catalog_id) store.byCatalog[c.catalog_id] = c; });
+    renderCatalog();
+    fillCourseSelect();
+  }
+
+  // ---------- Единый переход к секции или форме ----------
+  // Любая ссылка/кнопка с href="#id" или data-goto="id" идёт через эту функцию.
+  // Алиас: #apply и #apply-form ведут к одной и той же форме.
+  const ALIAS = { apply: 'apply-form' };
+  function goTo(id, opts) {
+    opts = opts || {};
+    const target = document.getElementById(ALIAS[id] || id);
+    if (!target) return false;
+    // закрываем открытые окна и сразу снимаем блокировку прокрутки
+    Array.prototype.forEach.call(document.querySelectorAll('dialog[open]'), (d) => d.close());
+    document.body.classList.remove('modal-open');
+    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    requestAnimationFrame(() => {
+      target.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+      if (opts.focus !== false && target.tagName === 'FORM') {
+        setTimeout(() => { const f = target.querySelector('input, select, textarea'); if (f) f.focus({ preventScroll: true }); }, smooth ? 600 : 50);
+      }
+    });
+    try { history.replaceState(null, '', '#' + id); } catch (e) { /* file:// */ }
+    return true;
+  }
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('a[href*="#"], [data-goto]');
+    if (!el) return;
+    let id = el.getAttribute('data-goto');
+    if (!id) {
+      const href = el.getAttribute('href') || '';
+      const at = href.indexOf('#');
+      if (at < 0) return;
+      const hash = href.slice(at + 1);
+      // обрабатываем только ссылки на эту же страницу
+      const samePage = href.charAt(0) === '#' || el.pathname === location.pathname;
+      if (!hash || !samePage) return;
+      id = hash;
+    }
+    if (goTo(id)) e.preventDefault();
+  });
+  window.goTo = goTo;
 
   // ---------- Меню, кнопка «наверх», подсветка пункта ----------
   const burger = $('#burger');
@@ -139,6 +204,20 @@
     return out;
   }
 
+  function priceLine(p) {
+    const c = store.byCatalog[p.id];
+    if (!c) return '';
+    if (c.external_url) {
+      return '<span>Длительность курса: <strong>' + esc(c.duration || 'уточняется') + '</strong></span>' +
+        '<span>Стоимость: <strong>' + money(c.price) + '</strong></span>' +
+        '<span>Обучение проходит на платформе: <strong>' + esc(c.provider || 'внешний сайт') + '</strong></span>';
+    }
+    const open = c.groups.filter((g) => g.seats_left > 0).length;
+    return '<span>Длительность курса: <strong>' + esc(c.duration || 'уточняется') + '</strong></span>' +
+      '<span>Стоимость: <strong>' + money(c.price) + '</strong></span>' +
+      '<span>Группы: ' + (c.groups.length ? open + ' с местами из ' + c.groups.length : 'набор скоро откроется') + '</span>';
+  }
+
   function cardHtml(p) {
     const media = p.img
       ? '<img class="card__media" src="' + esc(p.img) + '" alt="' + esc(p.title) + '" loading="lazy">'
@@ -153,6 +232,7 @@
           '<span>Зарплата: <strong>' + money(p.salary.junior) + ' – ' + money(p.salary.senior) + '</strong></span>' +
           '<span>Спрос: <span class="dots" aria-label="' + p.demand + ' из 5">' + dots(p.demand) + '</span></span>' +
           '<span>Подготовка: ' + esc(p.duration) + '</span>' +
+          priceLine(p) +
         '</div>' +
         '<div class="card__actions">' +
           '<button class="card-btn" type="button" data-open="' + esc(p.id) + '">Подробнее</button>' +
@@ -206,6 +286,27 @@
   const detail = $('#detail');
   function fact(label, html) { return '<div><span>' + esc(label) + '</span>' + html + '</div>'; }
 
+  function groupsHtml(p) {
+    const c = store.byCatalog[p.id];
+    if (!c) return '<p class="note">Цена и расписание групп загрузятся, когда сайт открыт с сервера.</p>';
+    if (c.external_url) {
+      return '<h4>Стоимость и длительность курса:</h4><p class="salary">' + money(c.price) +
+        (c.duration ? ' · ' + esc(c.duration) : '') + '</p>' +
+        '<p class="modal__desc">Обучение проходит на платформе <strong>' + esc(c.provider || 'внешний сайт') +
+        '</strong>. Нажмите «Записаться на курс»: вы автоматически перейдёте на неё, запись в группу здесь не нужна.</p>';
+    }
+    let html = '<h4>Стоимость и длительность курса:</h4><p class="salary">' + money(c.price) +
+      (c.duration ? ' · ' + esc(c.duration) : '') + '</p><h4>Группы и расписание:</h4>';
+    if (!c.groups.length) return html + '<p class="modal__desc">Набор групп скоро откроется. Загляните позже.</p>';
+    return html + '<div class="group-list">' + c.groups.map((g) =>
+      '<div class="group-row"><div><strong>' + esc(g.schedule_time) + '</strong>' +
+        '<span>Старт: ' + esc(fmtDate(g.start_date)) + (g.teacher_name ? ' · ' + esc(g.teacher_name) : '') +
+        ' · ' + (g.seats_left > 0 ? 'мест: ' + g.seats_left : 'мест нет') + '</span></div>' +
+      '<button class="button button--small" type="button" data-enroll-group="' + g.id + '" data-course="' + c.id + '"' +
+        (g.seats_left > 0 ? '' : ' disabled') + '>' + (g.seats_left > 0 ? 'Выбрать' : 'Мест нет') + '</button></div>'
+    ).join('') + '</div>';
+  }
+
   function openDetail(id) {
     const p = byId(id);
     if (!p || !detail) return;
@@ -230,10 +331,12 @@
         '<div><span>Middle</span><b>' + money(p.salary.middle) + '</b></div>' +
         '<div><span>Senior</span><b>' + money(p.salary.senior) + '</b></div>' +
       '</div>' +
+      groupsHtml(p) +
       '<h4>Дорожная карта обучения:</h4><ol>' + p.roadmap.map((s) => '<li>' + esc(s) + '</li>').join('') + '</ol>' +
       '<h4>Вам подойдёт, если вы:</h4>' + list(p.suits) +
       '<div class="modal__actions">' +
-        '<button class="button" type="button" data-apply="' + esc(p.id) + '">Записаться на курс</button>' +
+        '<button class="button" type="button" data-apply="' + esc(p.id) + '">' +
+          'Записаться на курс</button>' +
         '<button class="button button--ghost" type="button" data-compare-toggle="' + esc(p.id) + '">' + (inCompare ? 'Убрать из сравнения' : 'Добавить к сравнению') + '</button>' +
       '</div>';
     openDialog(detail);
@@ -241,6 +344,8 @@
 
   if (detail) {
     detail.addEventListener('click', (e) => {
+      const pick = e.target.closest('[data-enroll-group]');
+      if (pick) { selectCourse(pick.getAttribute('data-course'), pick.getAttribute('data-enroll-group')); goTo('apply-form'); return; }
       const apply = e.target.closest('[data-apply]');
       if (apply) { applyFor(apply.getAttribute('data-apply')); return; }
       const tg = e.target.closest('[data-compare-toggle]');
@@ -252,15 +357,29 @@
     });
   }
 
-  function applyFor(id) {
-    const sel = $('#selectedCourse');
-    const p = byId(id);
-    $$('dialog.modal[open]').forEach((d) => d.close());
-    if (sel && p) { sel.value = p.title; clearError('selectedCourse'); }
-    const target = $('#apply');
-    if (target) target.scrollIntoView({ behavior: 'smooth' });
-    setTimeout(() => { const n = $('#studentName'); if (n) n.focus({ preventScroll: true }); }, 450);
+  // Курс на внешней платформе: сразу переводим туда (в новой вкладке; если браузер её заблокировал — в этой же)
+  function redirectToPlatform(c) {
+    const w = window.open(c.external_url, '_blank', 'noopener,noreferrer');
+    if (!w) location.href = c.external_url;
   }
+
+  function applyFor(profId) {
+    const c = store.byCatalog[profId];
+    if (c && c.external_url) { redirectToPlatform(c); return; }
+    if (c) selectCourse(c.id);
+    goTo('apply-form');
+  }
+
+  // ---------- Выбор уровня ----------
+  const levelsEl = $('.levels');
+  if (levelsEl) levelsEl.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-level]');
+    if (!b) return;
+    $$('[data-level]', levelsEl).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    const sel = $('#studentLevel');
+    if (sel) sel.value = b.getAttribute('data-level');
+    goTo('apply-form');
+  });
 
   // ---------- Сравнение ----------
   const bar = $('#compareBar');
@@ -404,9 +523,11 @@
   }
   ['openQuiz', 'heroQuiz'].forEach((id) => { const b = document.getElementById(id); if (b) b.addEventListener('click', startQuiz); });
 
-  // ---------- Форма записи ----------
-  const form = $('#courseForm');
+  // ---------- Форма записи: курс -> группа -> заявка (нужен вход в аккаунт) ----------
+  const form = $('#apply-form');
   const statusEl = $('#formStatus');
+  const courseSel = $('#selectedCourse');
+  const groupSel = $('#selectedGroup');
 
   function clearError(id) {
     const msg = $('.field-error[data-for="' + id + '"]');
@@ -421,21 +542,52 @@
     if (input) input.classList.add('invalid');
   }
   function showStatus(text, kind) {
+    if (!statusEl) return;
     statusEl.textContent = text;
     statusEl.className = 'form-status ' + (kind || '');
   }
 
-  if (form) {
-    // Курсы в списке берутся из каталога
-    const select = $('#selectedCourse');
-    PROFS.forEach((p) => {
-      const o = document.createElement('option');
-      o.value = p.title;
-      o.textContent = p.title;
-      select.appendChild(o);
-    });
+  function fillCourseSelect() {
+    if (!courseSel) return;
+    const keep = courseSel.value;
+    // В форму попадают только курсы с группами; курсы с переходом на Stepik записывают через кнопку в каталоге
+    const payable = store.courses.filter((c) => !c.external_url);
+    courseSel.innerHTML = '<option value="" disabled selected>' + (store.courses.length ? 'Выберите курс' : 'Курсы недоступны: сервер не отвечает') + '</option>' +
+      payable.map((c) => '<option value="' + c.id + '">' + esc(c.title) + ' — ' + money(c.price) + (c.duration ? ' · ' + esc(c.duration) : '') + '</option>').join('');
+    if (keep && store.byId[keep]) courseSel.value = keep;
+    fillGroups();
+  }
 
-    ['studentName', 'studentPhone', 'studentEmail', 'selectedCourse', 'consent'].forEach((id) => {
+  function fillGroups(preselect) {
+    if (!groupSel) return;
+    const c = store.byId[courseSel.value];
+    if (!c) {
+      groupSel.disabled = true;
+      groupSel.innerHTML = '<option value="" disabled selected>Сначала выберите курс</option>';
+      return;
+    }
+    if (!c.groups.length) {
+      groupSel.disabled = true;
+      groupSel.innerHTML = '<option value="" disabled selected>Групп пока нет: набор скоро откроется</option>';
+      return;
+    }
+    groupSel.disabled = false;
+    groupSel.innerHTML = '<option value="" disabled selected>Выберите группу и расписание</option>' + c.groups.map((g) =>
+      '<option value="' + g.id + '"' + (g.seats_left > 0 ? '' : ' disabled') + '>' + esc(groupLabel(g, c)) + '</option>').join('');
+    if (preselect) groupSel.value = String(preselect);
+  }
+
+  function selectCourse(courseId, groupId) {
+    if (!courseSel) return;
+    courseSel.value = String(courseId);
+    fillGroups(groupId);
+    clearError('selectedCourse');
+    clearError('selectedGroup');
+  }
+
+  if (form) {
+    courseSel.addEventListener('change', () => fillGroups());
+    ['studentPhone', 'selectedCourse', 'selectedGroup', 'consent'].forEach((id) => {
       const el = document.getElementById(id);
       el.addEventListener('input', () => clearError(id));
       el.addEventListener('change', () => clearError(id));
@@ -457,17 +609,30 @@
       phone.value = out;
     });
 
+    // Кто вошёл: подставляем телефон, гостю показываем приглашение войти
+    Auth.me().then((me) => {
+      store.me = me;
+      $('#loginNotice').hidden = !!me;
+      if (me && me.role !== 'student') showStatus('Вы вошли как ' + (me.role === 'admin' ? 'администратор' : 'преподаватель') + ': заявки подают студенты.', 'error');
+      if (me && me.phone && !phone.value) { phone.value = me.phone; phone.dispatchEvent(new Event('input')); }
+    });
+
     function validate() {
       let ok = true;
-      const name = $('#studentName').value.trim();
-      if (name.length < 2 || !/[A-Za-zА-Яа-яЁёӘәІіҢңҒғҮүҰұҚқӨөҺһ]/.test(name)) { setError('studentName', 'Введите имя и фамилию.'); ok = false; }
-      const digits = phone.value.replace(/\D/g, '');
-      if (digits.length !== 11) { setError('studentPhone', 'Введите номер полностью: +7 XXX XXX XX XX.'); ok = false; }
-      const email = $('#studentEmail').value.trim();
-      if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setError('studentEmail', 'Проверьте адрес почты.'); ok = false; }
-      if (!select.value) { setError('selectedCourse', 'Выберите курс.'); ok = false; }
+      if (!courseSel.value) { setError('selectedCourse', 'Выберите курс.'); ok = false; }
+      if (!groupSel.value) { setError('selectedGroup', 'Выберите группу.'); ok = false; }
+      if (phone.value.replace(/\D/g, '').length !== 11) { setError('studentPhone', 'Введите номер полностью: +7 XXX XXX XX XX.'); ok = false; }
       if (!$('#consent').checked) { setError('consent', 'Нужно ваше согласие.'); ok = false; }
       return ok;
+    }
+
+    function askLogin() {
+      showStatus('Чтобы отправить заявку, войдите в аккаунт. ', 'error');
+      const a = document.createElement('a');
+      a.href = 'login.html?next=index.html';
+      a.textContent = 'Войти →';
+      statusEl.appendChild(a);
+      $('#loginNotice').hidden = false;
     }
 
     form.addEventListener('submit', async (e) => {
@@ -478,51 +643,40 @@
         if (bad) bad.focus();
         return;
       }
+      if (!store.me) { askLogin(); return; }
+
       const btn = $('#submitBtn');
       btn.disabled = true;
       btn.textContent = 'Отправляем…';
-
-      const payload = {
-        name: $('#studentName').value.trim(),
-        phone: phone.value.trim(),
-        email: $('#studentEmail').value.trim(),
-        course: select.value,
-        level: $('#studentLevel').value,
-        contact_time: $('#contactTime').value,
-        comment: $('#studentComment').value.trim(),
-        website: $('#website').value
-      };
-
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 10000);
       try {
-        const res = await fetch(API_BASE + '/api/apply', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-          signal: ctrl.signal
+        const body = await Auth.enroll({
+          group_id: Number(groupSel.value),
+          phone: phone.value.trim(),
+          level: $('#studentLevel').value,
+          comment: $('#studentComment').value.trim(),
+          website: $('#website').value
         });
-        let body = {};
-        try { body = await res.json(); } catch (err) { /* ответ без JSON */ }
-        if (res.ok) {
-          showStatus(body.message || 'Заявка отправлена!', 'success');
-          form.reset();
-        } else {
-          showStatus(body.message || 'Не удалось отправить заявку. Попробуйте позже.', 'error');
-        }
+        showStatus(body.message || 'Заявка отправлена!', 'success');
+        form.reset();
+        loadCourses();   // места в группах изменились
       } catch (err) {
-        // Сервер недоступен: честно говорим об этом и НЕ очищаем форму, чтобы данные не пропали.
-        showStatus('Не удалось связаться с сервером. Заявка не отправлена. Проверьте, что сервер запущен (python app.py), и попробуйте ещё раз.', 'error');
+        if (err.status === 401) { store.me = null; askLogin(); }
+        else if (err.message === 'NO_SERVER') showStatus('Не удалось связаться с сервером. Заявка не отправлена. Проверьте, что сервер запущен (python app.py), и попробуйте ещё раз.', 'error');
+        else showStatus(err.message, 'error');
+        if (err.status === 409) loadCourses();
       } finally {
-        clearTimeout(timer);
         btn.disabled = false;
         btn.textContent = 'Отправить заявку';
       }
     });
   }
 
+  // для ai.js: открыть карточку профессии
+  window.ITApp = { openDetail: openDetail };
+
   // ---------- Старт ----------
   renderChips();
   renderCatalog();
   updateBar();
+  if (cardsEl || form) loadCourses();
 })();

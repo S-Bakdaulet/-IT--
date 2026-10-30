@@ -4,240 +4,488 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
-  <title>Админ-панель — IT Professions</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Админ-панель — IT Academy</title>
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-
   <header class="header">
     <div class="container header__inner">
-      <a class="logo" href="index.html">IT-Professions</a>
-      <nav><ul><li><a href="index.html">← На сайт</a></li></ul></nav>
+      <a class="logo" href="/index.html">IT-Professions</a>
+      <nav><ul>
+        <li><a href="/account.html">Аккаунт</a></li>
+        <li><a href="/index.html">← На сайт</a></li>
+        <li><button class="button button--small button--ghost" type="button" id="logout">Выйти</button></li>
+      </ul></nav>
     </div>
   </header>
 
   <main class="section">
     <div class="container">
-      <h2 style="text-align:left">Заявки на курсы</h2>
-      <p class="section__lead" style="text-align:left;margin-left:0">
-        Если вы открыли эту страницу на своём компьютере через <code>python app.py</code>, токен не нужен.
-        На сервере в интернете введите значение переменной <code>ADMIN_TOKEN</code>.
-      </p>
+      <h2 style="text-align:left">Админ-панель</h2>
+      <div class="form-status" id="msg" role="status" aria-live="polite" style="text-align:left"></div>
 
-      <div class="admin-bar">
-        <label>Адрес сервера
-          <input type="text" id="api" placeholder="пусто = этот же сервер" autocomplete="off">
-        </label>
-        <label>Токен администратора
-          <input type="password" id="token" placeholder="необязательно на localhost" autocomplete="off">
-        </label>
-        <button class="button" type="button" id="load">Загрузить</button>
+      <div class="stats" id="tiles" style="margin-bottom:28px"></div>
+
+      <div class="tabs tabs--left" role="tablist" id="tabs">
+        <button class="tab" type="button" role="tab" data-tab="enrollments" aria-selected="true">Заявки</button>
+        <button class="tab" type="button" role="tab" data-tab="courses" aria-selected="false">Курсы и цены</button>
+        <button class="tab" type="button" role="tab" data-tab="groups" aria-selected="false">Группы</button>
+        <button class="tab" type="button" role="tab" data-tab="users" aria-selected="false">Пользователи</button>
       </div>
-      <div class="form-status" id="msg" role="status" aria-live="polite"></div>
 
-      <div id="dash" hidden>
-        <div class="stats" id="tiles"></div>
-
-        <div class="cards" style="margin-top:28px">
-          <div class="card card--text"><h3>Заявки по курсам</h3><div class="bars" id="byCourse"></div></div>
-          <div class="card card--text"><h3>Последние 14 дней</h3><div class="spark" id="spark"></div><p class="note" id="sparkNote" style="text-align:left"></p></div>
-        </div>
-
+      <!-- ЗАЯВКИ -->
+      <section data-panel="enrollments">
         <div class="filters">
-          <input type="search" id="q" placeholder="Поиск: имя, телефон, почта, комментарий" aria-label="Поиск">
-          <select id="fCourse" aria-label="Курс"><option value="">Все курсы</option></select>
-          <select id="fStatus" aria-label="Статус">
+          <input type="search" id="eq" placeholder="Поиск: студент, почта, телефон, расписание, преподаватель" aria-label="Поиск по заявкам" autocomplete="off">
+          <select id="eCourse" aria-label="Курс"><option value="">Все курсы</option></select>
+          <select id="eStatus" aria-label="Статус">
             <option value="">Все статусы</option>
-            <option value="new">Новые</option>
-            <option value="contacted">Связались</option>
-            <option value="enrolled">Записаны</option>
-            <option value="rejected">Отказ</option>
+            <option value="pending">На рассмотрении</option>
+            <option value="approved">Одобренные</option>
+            <option value="rejected">Отклонённые</option>
+          </select>
+          <select id="ePayment" aria-label="Оплата">
+            <option value="">Любая оплата</option>
+            <option value="paid">Оплачено</option>
+            <option value="pending">В ожидании</option>
+            <option value="unpaid">Не оплачено</option>
           </select>
           <button class="button button--ghost" type="button" id="export">Скачать CSV</button>
         </div>
+        <p class="result-count" id="eCount"></p>
+        <p class="note" style="text-align:left;margin:-6px 0 14px">Поиск идёт по всем полям сразу. Несколько слов сужают результат: «алия пн» — заявки в группах Алии по понедельникам.</p>
+        <div class="table-wrap"><table class="table">
+          <thead><tr><th>№</th><th>Дата</th><th>Студент</th><th>Курс и группа</th><th>Стоимость</th><th>Детали</th><th>Статус</th><th>Оплата</th><th></th></tr></thead>
+          <tbody id="eRows"></tbody>
+        </table></div>
+      </section>
 
-        <p class="result-count" id="count"></p>
-        <div class="table-wrap">
-          <table class="table">
-            <thead><tr>
-              <th>№</th><th>Дата</th><th>Имя</th><th>Контакты</th><th>Курс</th><th>Детали</th><th>Статус</th><th></th>
-            </tr></thead>
-            <tbody id="rows"></tbody>
-          </table>
+      <!-- КУРСЫ -->
+      <section data-panel="courses" hidden>
+        <div class="panel">
+          <h3 id="courseFormTitle">Новый курс</h3>
+          <form class="panel-form" id="courseForm">
+            <label>Название<input id="cTitle" maxlength="100" required></label>
+            <label>Цена, ₸<input id="cPrice" type="number" min="1" max="100000000" step="1000" required></label>
+            <label>Длительность
+              <select id="cDuration" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #fff;">
+                <option value="" disabled selected>Ұзақтығын таңдаңыз</option>
+                <option value="1 месяц / 4 недели">1 месяц / 4 недели</option>
+                <option value="2 месяца / 8 недель">2 месяца / 8 недель</option>
+                <option value="3 месяца / 12 недель">3 месяца / 12 недель</option>
+                <option value="4 месяца / 16 недель">4 месяца / 16 недель</option>
+                <option value="6 месяцев / 24 недели">6 месяцев / 24 недели</option>
+                <option value="1 год / 12 месяцев">1 год / 12 месяцев</option>
+              </select>
+            </label>
+            <label>catalog_id <small>(id профессии из data.js, для карточки в каталоге)</small><input id="cCatalog" maxlength="40" placeholder="например: frontend"></label>
+            <label>Ссылка на платформу <small>(необязательно: кнопка «Записаться» переведёт студента на Stepik и т. п.)</small><input id="cExternal" maxlength="300" placeholder="https://stepik.org/course/…"></label>
+            <label>Платформа <small>(Stepik, Coursera…)</small><input id="cProvider" maxlength="40" placeholder="Stepik"></label>
+            <label class="wide">Описание<textarea id="cDesc" maxlength="1000" rows="2"></textarea></label>
+            <div class="row-actions">
+              <button class="button" type="submit">Сохранить</button>
+              <button class="button button--ghost" type="button" id="cCancel" hidden>Отмена</button>
+            </div>
+          </form>
         </div>
-      </div>
+        <div class="table-wrap"><table class="table">
+          <thead><tr><th>№</th><th>Курс</th><th>Длительность</th><th>Цена</th><th>catalog_id</th><th>Платформа</th><th>Групп</th><th></th></tr></thead>
+          <tbody id="cRows"></tbody>
+        </table></div>
+      </section>
+
+      <!-- ГРУППЫ -->
+      <section data-panel="groups" hidden>
+        <div class="panel">
+          <h3 id="groupFormTitle">Новая группа</h3>
+          <form class="panel-form" id="groupForm">
+            <label>Курс<select id="gCourse" required></select></label>
+            <label>Преподаватель<select id="gTeacher"></select></label>
+            
+            <label class="wide">Сабақ күндері (апта күндерін таңдаңыз)
+              <div class="d-flex flex-wrap gap-3 mt-1" id="days-checkboxes" style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px;">
+                <label style="display:inline-flex; align-items:center; gap:4px; font-weight:normal;"><input class="schedule-day" type="checkbox" value="Пн"> Пн</label>
+                <label style="display:inline-flex; align-items:center; gap:4px; font-weight:normal;"><input class="schedule-day" type="checkbox" value="Вт"> Вт</label>
+                <label style="display:inline-flex; align-items:center; gap:4px; font-weight:normal;"><input class="schedule-day" type="checkbox" value="Ср"> Ср</label>
+                <label style="display:inline-flex; align-items:center; gap:4px; font-weight:normal;"><input class="schedule-day" type="checkbox" value="Чт"> Чт</label>
+                <label style="display:inline-flex; align-items:center; gap:4px; font-weight:normal;"><input class="schedule-day" type="checkbox" value="Пт"> Пт</label>
+                <label style="display:inline-flex; align-items:center; gap:4px; font-weight:normal;"><input class="schedule-day" type="checkbox" value="Сб"> Сб</label>
+                <label style="display:inline-flex; align-items:center; gap:4px; font-weight:normal;"><input class="schedule-day" type="checkbox" value="Вс"> Вс</label>
+              </div>
+            </label>
+
+            <label>Сабақ уақыты
+              <select id="gTimeSelect" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #fff;">
+                <option value="" disabled selected>Уақытын таңдаңыз</option>
+                <option value="09:00">09:00</option>
+                <option value="11:00">11:00</option>
+                <option value="15:00">15:00</option>
+                <option value="18:00">18:00</option>
+                <option value="19:30">19:30</option>
+                <option value="20:00">20:00</option>
+              </select>
+            </label>
+
+            <!-- Жасырын поле для schedule_time -->
+            <input type="hidden" id="gSchedule" required>
+            <div class="wide" style="margin-bottom: 10px;"><small class="text-muted">Қалыптасқан кесте: <span id="schedule-preview" class="fw-bold text-primary" style="font-weight: bold; color: #2c3e50;">талдалмаған</span></small></div>
+
+            <label>Дата старта<input id="gStart" type="date" required></label>
+            <label>Мест в группе<input id="gMax" type="number" min="1" max="200" value="15" required></label>
+            <div class="row-actions wide">
+              <button class="button" type="submit">Сохранить</button>
+              <button class="button button--ghost" type="button" id="gCancel" hidden>Отмена</button>
+            </div>
+          </form>
+        </div>
+        <div class="table-wrap"><table class="table">
+          <thead><tr><th>№</th><th>Курс</th><th>Расписание</th><th>Старт</th><th>Преподаватель</th><th>Места</th><th></th></tr></thead>
+          <tbody id="gRows"></tbody>
+        </table></div>
+      </section>
+
+      <!-- ПОЛЬЗОВАТЕЛИ -->
+      <section data-panel="users" hidden>
+        <div class="panel">
+          <h3>Создать пользователя</h3>
+          <p class="note" style="text-align:left;margin:0 0 12px">Преподавателей создаёт только администратор: у них нет самостоятельной регистрации.</p>
+          <form class="panel-form" id="userForm">
+            <label>Имя и фамилия<input id="uName" maxlength="80" required></label>
+            <label>Почта<input id="uEmail" type="email" maxlength="120" required></label>
+            <label>Пароль <small>(от 8 символов)</small><input id="uPass" type="password" minlength="8" maxlength="128" autocomplete="new-password" required></label>
+            <label>Роль<select id="uRole">
+              <option value="teacher">Преподаватель</option>
+              <option value="student">Студент</option>
+              <option value="admin">Администратор</option>
+            </select></label>
+            <div class="row-actions"><button class="button" type="submit">Создать</button></div>
+          </form>
+        </div>
+        <div class="filters" style="grid-template-columns:1fr auto">
+          <select id="uFilter" aria-label="Фильтр по роли">
+            <option value="">Все роли</option><option value="student">Студенты</option>
+            <option value="teacher">Преподаватели</option><option value="admin">Администраторы</option>
+          </select>
+        </div>
+        <div class="table-wrap"><table class="table">
+          <thead><tr><th>№</th><th>Имя</th><th>Контакты</th><th>Роль</th><th>Заявок / групп</th><th></th></tr></thead>
+          <tbody id="uRows"></tbody>
+        </table></div>
+      </section>
     </div>
   </main>
 
+  <script src="/auth.js"></script>
   <script>
   (function () {
     'use strict';
     var $ = function (s) { return document.querySelector(s); };
-    var LABELS = { 'new': 'Новая', contacted: 'Связались', enrolled: 'Записан', rejected: 'Отказ' };
+    var STATUS = { pending: 'На рассмотрении', approved: 'Одобрена', rejected: 'Отклонена' };
+    var PAY = { unpaid: 'Не оплачено', pending: 'В ожидании', paid: 'Оплачено' };
+    var ROLE = { student: 'Студент', teacher: 'Преподаватель', admin: 'Администратор' };
+    var state = { me: null, courses: [], teachers: [], editCourse: null, editGroup: null };
 
-    // Адрес сервера запоминаем надолго, токен — только до закрытия вкладки.
-    // Если хранилище недоступно, страница всё равно работает.
-    function read(key) { try { return sessionStorage.getItem(key) || localStorage.getItem(key) || ''; } catch (e) { return ''; } }
-    function write(key, val) { try { (key === 'admin_token' ? sessionStorage : localStorage).setItem(key, val); } catch (e) { /* ignore */ } }
-
-    var isLocalDev = ['localhost', '127.0.0.1', ''].indexOf(location.hostname) !== -1;
-    $('#api').value = read('admin_api') || (isLocalDev && location.port !== '5000' ? 'http://127.0.0.1:5000' : '');
-    $('#token').value = read('admin_token');
-
-    function el(tag, text, cls) {
+    // ---- вспомогательное: создание узлов только через textContent (без innerHTML — защита от XSS)
+    function h(tag, props, kids) {
       var e = document.createElement(tag);
-      if (text !== undefined && text !== null) e.textContent = text;
-      if (cls) e.className = cls;
+      Object.keys(props || {}).forEach(function (k) {
+        if (k === 'class') e.className = props[k]; else if (k === 'text') e.textContent = props[k]; else e[k] = props[k];
+      });
+      [].concat(kids || []).forEach(function (c) { if (c != null) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
       return e;
     }
-    function msg(text, bad) { var m = $('#msg'); m.textContent = text; m.className = 'form-status ' + (bad ? 'error' : 'success'); }
-    function base() { return $('#api').value.trim().replace(/\/+$/, ''); }
+    function td(tr, content) { var c = h('td', {}, content === undefined ? [] : [content]); tr.appendChild(c); return c; }
+    function two(main, sub) { return h('span', {}, [main, h('small', { text: sub || '' })]); }
+    function money(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₸'; }
+    function date(s) { var d = new Date(s + 'T00:00:00'); return isNaN(d) ? s : d.toLocaleDateString('ru-RU'); }
     function when(s) { var d = new Date(String(s).replace(' ', 'T') + 'Z'); return isNaN(d) ? s : d.toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }); }
-
-    function api(path, opts) {
-      opts = opts || {};
-      opts.headers = Object.assign({ 'X-Admin-Token': $('#token').value.trim() }, opts.headers || {});
-      return fetch(base() + path, opts);
-    }
-    function filters() {
-      var p = new URLSearchParams();
-      if ($('#q').value.trim()) p.set('q', $('#q').value.trim());
-      if ($('#fCourse').value) p.set('course', $('#fCourse').value);
-      if ($('#fStatus').value) p.set('status', $('#fStatus').value);
-      var s = p.toString();
-      return s ? '?' + s : '';
-    }
-
-    async function loadStats() {
-      var r = await api('/api/stats');
-      var j = await r.json();
-      if (!r.ok) throw new Error(j.message || 'Ошибка ' + r.status);
-      var d = j.data;
-      var tiles = $('#tiles');
-      tiles.textContent = '';
-      [['Всего заявок', d.total], ['Сегодня', d.today], ['За 7 дней', d.week], ['Новых', d.by_status['new'] || 0]].forEach(function (t) {
-        var box = el('div', null, 'tile');
-        box.appendChild(el('div', t[1], 'stat__number'));
-        box.appendChild(el('div', t[0], 'stat__label'));
-        tiles.appendChild(box);
-      });
-
-      var by = $('#byCourse');
-      by.textContent = '';
-      var max = Math.max.apply(null, [1].concat(d.by_course.map(function (c) { return c.count; })));
-      d.by_course.forEach(function (c) {
-        var row = el('div', null, 'bar-row');
-        row.appendChild(el('span', c.course));
-        var bar = el('i'); bar.style.width = (c.count / max * 100) + '%';
-        row.appendChild(bar);
-        row.appendChild(el('b', c.count));
-        by.appendChild(row);
-      });
-      if (!d.by_course.length) by.appendChild(el('p', 'Пока нет данных', 'note'));
-
-      var sel = $('#fCourse'), keep = sel.value;
+    function msg(text, bad) { var m = $('#msg'); m.textContent = text; m.className = 'form-status ' + (bad ? 'error' : 'success'); }
+    function fail(e) { msg(e.status === 401 || e.status === 403 ? 'Нет доступа: войдите как администратор.' : (e.message === 'NO_SERVER' ? 'Сервер недоступен.' : e.message), true); }
+    function api(path, method, body) { return Auth.call('/api/admin' + path, { method: method || 'GET', body: body }); }
+    function fill(sel, items, first) {
       sel.textContent = '';
-      sel.appendChild(new Option('Все курсы', ''));
-      d.by_course.forEach(function (c) { sel.appendChild(new Option(c.course + ' (' + c.count + ')', c.course)); });
-      sel.value = keep;
-
-      var map = {}; d.by_day.forEach(function (x) { map[x.day] = x.count; });
-      var spark = $('#spark'); spark.textContent = '';
-      var days = [], now = new Date();
-      for (var i = 13; i >= 0; i--) { var dt = new Date(now.getTime() - i * 86400000); days.push(dt.toISOString().slice(0, 10)); }
-      var m2 = Math.max.apply(null, [1].concat(days.map(function (k) { return map[k] || 0; })));
-      days.forEach(function (k) {
-        var s = el('span'); s.style.height = Math.max(3, (map[k] || 0) / m2 * 100) + '%'; s.title = k + ': ' + (map[k] || 0);
-        spark.appendChild(s);
-      });
-      $('#sparkNote').textContent = 'Дни указаны по UTC. Наведите на столбик, чтобы увидеть число.';
+      if (first) sel.appendChild(new Option(first[1], first[0]));
+      items.forEach(function (i) { sel.appendChild(new Option(i[1], i[0])); });
     }
 
-    async function loadRows() {
-      var r = await api('/api/requests' + filters());
-      var j = await r.json();
-      if (!r.ok) throw new Error(j.message || 'Ошибка ' + r.status);
-      var body = $('#rows'); body.textContent = '';
-      $('#count').textContent = 'Показано: ' + j.data.length + ' из ' + j.total;
-      j.data.forEach(function (x) {
-        var tr = document.createElement('tr');
-        tr.appendChild(el('td', x.id));
-        tr.appendChild(el('td', when(x.created_at)));
-        tr.appendChild(el('td', x.student_name));
+    // ---- вкладки
+    $('#tabs').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-tab]'); if (!b) return;
+      [].forEach.call(document.querySelectorAll('[data-tab]'), function (x) { x.setAttribute('aria-selected', String(x === b)); });
+      [].forEach.call(document.querySelectorAll('[data-panel]'), function (p) { p.hidden = p.getAttribute('data-panel') !== b.getAttribute('data-tab'); });
+    });
 
-        var c = el('td');
-        if (x.phone) { var a = el('a', x.phone); a.href = 'tel:' + x.phone.replace(/[^\d+]/g, ''); c.appendChild(a); }
-        if (x.email) { c.appendChild(document.createElement('br')); var m = el('a', x.email); m.href = 'mailto:' + x.email; c.appendChild(m); }
-        tr.appendChild(c);
-
-        tr.appendChild(el('td', x.selected_course));
-
-        var det = el('td');
-        det.textContent = [x.level, x.contact_time].filter(Boolean).join(' · ');
-        if (x.comment) { det.appendChild(document.createElement('br')); det.appendChild(el('em', x.comment)); }
-        tr.appendChild(det);
-
-        var st = el('td');
-        var s = el('select', null, 'status-select');
-        s.setAttribute('aria-label', 'Статус заявки ' + x.id);
-        Object.keys(LABELS).forEach(function (k) { var o = new Option(LABELS[k], k); if (k === x.status) o.selected = true; s.appendChild(o); });
-        s.addEventListener('change', async function () {
-          var rr = await api('/api/requests/' + x.id, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: s.value }) });
-          if (rr.ok) { msg('Статус заявки №' + x.id + ' обновлён'); loadStats(); } else { msg('Не удалось изменить статус', true); }
+    // ---- сводка
+    function loadStats() {
+      return api('/stats').then(function (j) {
+        var d = j.data, t = $('#tiles'); t.textContent = '';
+        [['Заявок на рассмотрении', d.pending], ['Всего заявок', d.enrollments], ['Студентов', d.students],
+         ['Преподавателей', d.teachers], ['Групп', d.groups], ['Оплачено', money(d.paid_revenue || 0)],
+         ['Ждут оплаты', ((d.by_payment || {}).pending || 0) + ((d.by_payment || {}).unpaid || 0)]].forEach(function (x) {
+          t.appendChild(h('div', { class: 'tile' }, [h('div', { class: 'stat__number', text: String(x[1]) }), h('div', { class: 'stat__label', text: x[0] })]));
         });
-        st.appendChild(s);
-        tr.appendChild(st);
-
-        var act = el('td');
-        var del = el('button', 'Удалить', 'button button--small button--danger');
-        del.type = 'button';
-        del.addEventListener('click', async function () {
-          if (!confirm('Удалить заявку №' + x.id + ' (' + x.student_name + ')? Это нельзя отменить.')) return;
-          var rr = await api('/api/requests/' + x.id, { method: 'DELETE' });
-          if (rr.ok) { msg('Заявка №' + x.id + ' удалена'); refresh(); } else { msg('Не удалось удалить', true); }
-        });
-        act.appendChild(del);
-        tr.appendChild(act);
-        body.appendChild(tr);
+        var by = d.by_status || {}, labels = { '': 'Все статусы (' + d.enrollments + ')', pending: 'На рассмотрении (' + (by.pending || 0) + ')',
+          approved: 'Одобренные (' + (by.approved || 0) + ')', rejected: 'Отклонённые (' + (by.rejected || 0) + ')' };
+        [].forEach.call($('#eStatus').options, function (o) { o.textContent = labels[o.value]; });
       });
-      if (!j.data.length) { var e = document.createElement('tr'); var td = el('td', 'Заявок не найдено'); td.colSpan = 8; e.appendChild(td); body.appendChild(e); }
     }
 
-    async function refresh() {
-      try {
-        msg('Загрузка…');
-        await loadStats();
-        await loadRows();
-        $('#dash').hidden = false;
-        msg('');
-        write('admin_api', $('#api').value.trim());
-        write('admin_token', $('#token').value.trim());
-      } catch (err) {
-        $('#dash').hidden = true;
-        msg(err.message === 'Failed to fetch'
-          ? 'Сервер недоступен. Запустите python app.py и проверьте адрес.'
-          : err.message, true);
+    // ---- заявки
+    function eFilters() {
+      var p = new URLSearchParams();
+      if ($('#eq').value.trim()) p.set('q', $('#eq').value.trim());
+      if ($('#eCourse').value) p.set('course_id', $('#eCourse').value);
+      if ($('#eStatus').value) p.set('status', $('#eStatus').value);
+      if ($('#ePayment').value) p.set('payment_status', $('#ePayment').value);
+      var s = p.toString(); return s ? '?' + s : '';
+    }
+    function loadEnrollments() {
+      return api('/enrollments' + eFilters()).then(function (j) {
+        var body = $('#eRows'); body.textContent = '';
+        $('#eCount').textContent = 'Показано: ' + j.data.length;
+        j.data.forEach(function (x) {
+          var tr = h('tr');
+          td(tr, String(x.id)); td(tr, when(x.created_at));
+          var c = td(tr, h('span', {}, [x.student_name]));
+          c.appendChild(h('small', {}, [h('a', { href: 'mailto:' + x.email, text: x.email })]));
+          if (x.phone) c.appendChild(h('small', {}, [h('a', { href: 'tel:' + x.phone.replace(/[^\d+]/g, ''), text: x.phone })]));
+          td(tr, two(x.course_title + (x.duration ? ' · ' + x.duration : ''), x.schedule_time + ' · старт ' + date(x.start_date) + ' · ' + (x.teacher_name || 'без преподавателя')));
+          td(tr, money(x.price));
+          td(tr, two(x.level || '—', x.comment || ''));
+          var sel = h('select', { class: 'status-select', title: 'Статус заявки ' + x.id });
+          Object.keys(STATUS).forEach(function (k) { var o = new Option(STATUS[k], k); o.selected = k === x.status; sel.appendChild(o); });
+          sel.addEventListener('change', function () {
+            api('/enrollments/' + x.id, 'PATCH', { status: sel.value })
+              .then(function () { msg('Заявка №' + x.id + ': ' + STATUS[sel.value].toLowerCase()); loadStats(); loadGroups(); loadEnrollments(); })
+              .catch(function (e) { fail(e); loadEnrollments(); });
+          });
+          td(tr, sel);
+          var psel = h('select', { class: 'status-select', title: 'Оплата заявки ' + x.id });
+          Object.keys(PAY).forEach(function (k) { var o = new Option(PAY[k], k); o.selected = k === x.payment_status; psel.appendChild(o); });
+          psel.addEventListener('change', function () {
+            api('/enrollments/' + x.id, 'PATCH', { payment_status: psel.value })
+              .then(function () { msg('Заявка №' + x.id + ': оплата — ' + PAY[psel.value].toLowerCase()); loadStats(); })
+              .catch(function (e) { fail(e); loadEnrollments(); });
+          });
+          td(tr, psel);
+          var del = h('button', { type: 'button', class: 'button button--small button--danger', text: 'Удалить' });
+          del.addEventListener('click', function () {
+            if (!confirm('Удалить заявку №' + x.id + ' (' + x.student_name + ')? Это нельзя отменить.')) return;
+            api('/enrollments/' + x.id, 'DELETE').then(function () { msg('Заявка удалена'); refreshAll(); }).catch(fail);
+          });
+          td(tr, del);
+          body.appendChild(tr);
+        });
+        if (!j.data.length) { var e = h('tr'); td(e, 'Заявок не найдено').colSpan = 9; body.appendChild(e); }
+      });
+    }
+    var timer;
+    $('#eq').addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(function () { loadEnrollments().catch(fail); }, 250); });
+    ['#eCourse', '#eStatus', '#ePayment'].forEach(function (s) { $(s).addEventListener('change', function () { loadEnrollments().catch(fail); }); });
+    $('#export').addEventListener('click', function () {
+      fetch('/api/admin/enrollments.csv' + eFilters(), { credentials: 'same-origin' }).then(function (r) {
+        if (!r.ok) throw new Error('Не удалось скачать файл (' + r.status + ')');
+        return r.blob();
+      }).then(function (blob) {
+        var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'enrollments.csv';
+        document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      }).catch(fail);
+    });
+
+    // ---- курсы
+    function resetCourseForm() {
+      state.editCourse = null; $('#courseForm').reset(); $('#courseFormTitle').textContent = 'Новый курс'; $('#cCancel').hidden = true;
+    }
+    function loadCourses() {
+      return api('/courses').then(function (j) {
+        state.courses = j.data;
+        var body = $('#cRows'); body.textContent = '';
+        j.data.forEach(function (c) {
+          var tr = h('tr');
+          td(tr, String(c.id)); td(tr, two(c.title, c.description)); td(tr, c.duration || '—'); td(tr, money(c.price)); td(tr, c.catalog_id || '—');
+          td(tr, c.external_url ? h('a', { href: c.external_url, target: '_blank', rel: 'noopener noreferrer', text: c.provider || 'ссылка' }) : '—');
+          td(tr, String(c.groups_count));
+          var act = h('div', { class: 'row-actions' });
+          var edit = h('button', { type: 'button', class: 'button button--small button--ghost', text: 'Изменить' });
+          edit.addEventListener('click', function () {
+            state.editCourse = c.id; $('#cTitle').value = c.title; $('#cPrice').value = c.price; $('#cDuration').value = c.duration || ''; $('#cCatalog').value = c.catalog_id || ''; $('#cExternal').value = c.external_url || ''; $('#cProvider').value = c.provider || ''; $('#cDesc').value = c.description;
+            $('#courseFormTitle').textContent = 'Изменить курс №' + c.id; $('#cCancel').hidden = false; $('#cTitle').focus();
+          });
+          var del = h('button', { type: 'button', class: 'button button--small button--danger', text: 'Удалить' });
+          del.addEventListener('click', function () {
+            if (!confirm('Удалить курс «' + c.title + '»?')) return;
+            api('/courses/' + c.id, 'DELETE').then(function () { msg('Курс удалён'); refreshAll(); }).catch(fail);
+          });
+          act.appendChild(edit); act.appendChild(del); td(tr, act);
+          body.appendChild(tr);
+        });
+        fill($('#gCourse'), j.data.map(function (c) { return [c.id, c.title]; }));
+        fill($('#eCourse'), j.data.map(function (c) { return [c.id, c.title]; }), ['', 'Все курсы']);
+      });
+    }
+    $('#courseForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var payload = { title: $('#cTitle').value, price: Number($('#cPrice').value), duration: $('#cDuration').value, catalog_id: $('#cCatalog').value, external_url: $('#cExternal').value, provider: $('#cProvider').value, description: $('#cDesc').value };
+      var req = state.editCourse ? api('/courses/' + state.editCourse, 'PUT', payload) : api('/courses', 'POST', payload);
+      req.then(function () { msg('Курс сохранён'); resetCourseForm(); refreshAll(); }).catch(fail);
+    });
+    $('#cCancel').addEventListener('click', resetCourseForm);
+
+    // ---- группы (Schedule picker логика)
+    function updateSchedulePreview() {
+      var checkedDays = Array.prototype.slice.call(document.querySelectorAll('.schedule-day:checked')).map(function(cb) { return cb.value; });
+      var timeSelect = $('#gTimeSelect').value;
+      var previewSpan = $('#schedule-preview');
+      var hiddenInput = $('#gSchedule');
+
+      if (checkedDays.length > 0 && timeSelect) {
+        var combined = checkedDays.join('/') + ' ' + timeSelect;
+        previewSpan.textContent = combined;
+        hiddenInput.value = combined;
+      } else {
+        previewSpan.textContent = 'күндер мен уақытты толық таңдаңыз';
+        hiddenInput.value = '';
       }
     }
 
-    $('#load').addEventListener('click', refresh);
-    ['q'].forEach(function (id) { var t; $('#' + id).addEventListener('input', function () { clearTimeout(t); t = setTimeout(loadRows, 250); }); });
-    ['#fCourse', '#fStatus'].forEach(function (s) { $(s).addEventListener('change', function () { loadRows().catch(function (e) { msg(e.message, true); }); }); });
-
-    $('#export').addEventListener('click', async function () {
-      try {
-        var r = await api('/api/requests.csv' + filters());
-        if (!r.ok) throw new Error('Не удалось скачать файл (' + r.status + ')');
-        var blob = await r.blob();
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'course_requests.csv';
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
-      } catch (err) { msg(err.message, true); }
+    [].forEach.call(document.querySelectorAll('.schedule-day'), function(cb) {
+      cb.addEventListener('change', updateSchedulePreview);
     });
+    $('#gTimeSelect').addEventListener('change', updateSchedulePreview);
 
-    refresh();
+    function parseScheduleToForm(scheduleStr) {
+      // Кері талдау (Edit кезінде чекбокстар мен селектті орнату үшін)
+      [].forEach.call(document.querySelectorAll('.schedule-day'), function(cb) { cb.checked = false; });
+      $('#gTimeSelect').value = '';
+      if (!scheduleStr) return;
+
+      var parts = scheduleStr.split(' ');
+      if (parts.length >= 2) {
+        var daysPart = parts[0];
+        var timePart = parts[1];
+        var days = daysPart.split('/');
+        days.forEach(function(d) {
+          var cb = document.querySelector('.schedule-day[value="' + d + '"]');
+          if (cb) cb.checked = true;
+        });
+        $('#gTimeSelect').value = timePart;
+      }
+      updateSchedulePreview();
+    }
+
+    function resetGroupForm() {
+      state.editGroup = null; $('#groupForm').reset(); $('#gMax').value = 15;
+      [].forEach.call(document.querySelectorAll('.schedule-day'), function(cb) { cb.checked = false; });
+      $('#gTimeSelect').value = '';
+      $('#gSchedule').value = '';
+      $('#schedule-preview').textContent = 'талдалмаған';
+      $('#groupFormTitle').textContent = 'Новая группа'; $('#gCancel').hidden = true;
+    }
+
+    function loadGroups() {
+      return api('/groups').then(function (j) {
+        var body = $('#gRows'); body.textContent = '';
+        j.data.forEach(function (g) {
+          var tr = h('tr');
+          td(tr, String(g.id)); td(tr, two(g.course_title, g.duration || '')); td(tr, g.schedule_time); td(tr, date(g.start_date)); td(tr, g.teacher_name || '— не назначен —');
+          td(tr, two(g.approved_count + ' из ' + g.max_students, g.pending_count ? 'ожидают: ' + g.pending_count : ''));
+          var act = h('div', { class: 'row-actions' });
+          var edit = h('button', { type: 'button', class: 'button button--small button--ghost', text: 'Изменить' });
+          edit.addEventListener('click', function () {
+            state.editGroup = g.id; $('#gCourse').value = g.course_id; $('#gTeacher').value = g.teacher_id || '';
+            parseScheduleToForm(g.schedule_time);
+            $('#gStart').value = g.start_date; $('#gMax').value = g.max_students;
+            $('#groupFormTitle').textContent = 'Изменить группу №' + g.id; $('#gCancel').hidden = false; $('#gCourse').focus();
+          });
+          var del = h('button', { type: 'button', class: 'button button--small button--danger', text: 'Удалить' });
+          del.addEventListener('click', function () {
+            if (!confirm('Удалить группу №' + g.id + '?')) return;
+            api('/groups/' + g.id, 'DELETE').then(function () { msg('Группа удалена'); refreshAll(); }).catch(fail);
+          });
+          act.appendChild(edit); act.appendChild(del); td(tr, act);
+          body.appendChild(tr);
+        });
+        if (!j.data.length) { var e = h('tr'); td(e, 'Групп пока нет. Создайте первую выше: тогда студенты смогут записываться.').colSpan = 7; body.appendChild(e); }
+      });
+    }
+
+    $('#groupForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      updateSchedulePreview();
+      var scheduleVal = $('#gSchedule').value;
+      if (!scheduleVal) {
+        alert('Кем дегенде бір күн және сабақ уақытын міндетті түрде таңдаңыз!');
+        return;
+      }
+      var payload = { course_id: Number($('#gCourse').value), teacher_id: $('#gTeacher').value, schedule_time: scheduleVal, start_date: $('#gStart').value, max_students: Number($('#gMax').value) };
+      var req = state.editGroup ? api('/groups/' + state.editGroup, 'PUT', payload) : api('/groups', 'POST', payload);
+      req.then(function () { msg('Группа сохранена'); resetGroupForm(); refreshAll(); }).catch(fail);
+    });
+    $('#gCancel').addEventListener('click', resetGroupForm);
+
+    // ---- пользователи
+    function loadUsers() {
+      var role = $('#uFilter').value;
+      return api('/users' + (role ? '?role=' + role : '')).then(function (j) {
+        var body = $('#uRows'); body.textContent = '';
+        j.data.forEach(function (u) {
+          var tr = h('tr'), mine = u.id === state.me.id;
+          td(tr, String(u.id));
+          td(tr, two(u.name, 'с ' + when(u.created_at)));
+          var c = td(tr, h('span', {}, [h('a', { href: 'mailto:' + u.email, text: u.email })]));
+          if (u.phone) c.appendChild(h('small', { text: u.phone }));
+          var sel = h('select', { class: 'status-select', disabled: mine, title: mine ? 'Свою роль менять нельзя' : 'Роль' });
+          Object.keys(ROLE).forEach(function (k) { var o = new Option(ROLE[k], k); o.selected = k === u.role; sel.appendChild(o); });
+          sel.addEventListener('change', function () {
+            api('/users/' + u.id, 'PATCH', { role: sel.value }).then(function () { msg('Роль изменена'); refreshAll(); }).catch(function (e) { fail(e); loadUsers(); });
+          });
+          td(tr, sel);
+          td(tr, u.enrollments + ' / ' + u.groups_count);
+          var act = h('div', { class: 'row-actions' });
+          var pw = h('button', { type: 'button', class: 'button button--small button--ghost', text: 'Новый пароль' });
+          pw.addEventListener('click', function () {
+            var p = prompt('Новый пароль для ' + u.email + ' (минимум 8 символов):');
+            if (p) api('/users/' + u.id, 'PATCH', { password: p }).then(function () { msg('Пароль изменён'); }).catch(fail);
+          });
+          act.appendChild(pw);
+          if (!mine) {
+            var del = h('button', { type: 'button', class: 'button button--small button--danger', text: 'Удалить' });
+            del.addEventListener('click', function () {
+              if (!confirm('Удалить пользователя ' + u.name + '? Его заявки тоже будут удалены.')) return;
+              api('/users/' + u.id, 'DELETE').then(function () { msg('Пользователь удалён'); refreshAll(); }).catch(fail);
+            });
+            act.appendChild(del);
+          }
+          td(tr, act);
+          body.appendChild(tr);
+        });
+      });
+    }
+    $('#uFilter').addEventListener('change', function () { loadUsers().catch(fail); });
+    $('#userForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      api('/users', 'POST', { name: $('#uName').value, email: $('#uEmail').value, password: $('#uPass').value, role: $('#uRole').value })
+        .then(function () { msg('Пользователь создан'); $('#userForm').reset(); refreshAll(); }).catch(fail);
+    });
+    function loadTeachers() {
+      return api('/users?role=teacher').then(function (j) {
+        state.teachers = j.data;
+        fill($('#gTeacher'), j.data.map(function (u) { return [u.id, u.name]; }), ['', '— не назначен —']);
+      });
+    }
+
+    function refreshAll() {
+      return Promise.all([loadStats(), loadCourses(), loadTeachers()])
+        .then(function () { return Promise.all([loadEnrollments(), loadGroups(), loadUsers()]); }).catch(fail);
+    }
+
+    $('#logout').addEventListener('click', function () { Auth.logout().then(function () { location.href = '/index.html'; }); });
+
+    Auth.me().then(function (u) {
+      if (!u || u.role !== 'admin') { location.href = '/login.html?next=/admin'; return; }
+      state.me = u;
+      refreshAll();
+    });
   })();
   </script>
 </body>

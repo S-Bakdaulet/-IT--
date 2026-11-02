@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Аналитика заявок на IT-курсы: дашборд Power BI, ключевые выводы и открытые данные.">
+  <meta name="theme-color" content="#0f172a">
+  <title>Аналитика — IT Professions</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .dash { margin: 0; }
+    .dash img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: var(--radius); border: 1px solid var(--border-color); background: var(--bg-card); }
+    .dash figcaption { color: var(--text-muted); font-size: 13px; margin-top: 10px; }
+    .insights { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; }
+    .insights li { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 18px 20px; }
+    .insights strong { color: var(--accent); }
+    .downloads { display: flex; flex-wrap: wrap; gap: 12px; }
+    .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; color: var(--text-muted); font-size: 14px; }
+    .meta-grid b { color: var(--text-main); }
+    .section h2.left, .section .section__lead.left { text-align: left; margin-left: 0; }
+    .downloads a.is-missing { opacity: .45; cursor: not-allowed; }
+    @media (max-width: 400px) { .stat__number { font-size: 28px; } }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container header__inner">
+      <a class="logo" href="index.html">IT-Professions</a>
+      <button class="burger" id="burger" aria-label="Открыть меню" aria-expanded="false" aria-controls="nav">☰</button>
+      <nav id="nav" aria-label="Основное меню">
+        <ul>
+          <li><a href="index.html">Главная</a></li>
+          <li><a href="index.html#catalog">Каталог</a></li>
+          <li><a href="index.html#ai-helper">ИИ-подбор</a></li>
+          <li><a href="analytics.html" aria-current="page">Аналитика</a></li>
+          <li><a href="about.html">О проекте</a></li>
+          <li><a href="login.html" id="accountLink">Войти</a></li>
+          <li><a class="button" href="index.html#apply">Записаться</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="section">
+      <div class="container">
+        <h1 style="font-size:32px;margin-bottom:12px">Аналитика заявок на IT-курсы</h1>
+        <p class="section__lead left">Дашборд Power BI по учебному набору данных: заявки на 12 курсов, оплата, источники и оценки студентов.</p>
+
+        <div class="stats" aria-label="Ключевые показатели" style="margin-bottom:32px">
+          <div class="tile"><div class="stat__number">240</div><div class="stat__label">заявок</div></div>
+          <div class="tile"><div class="stat__number">59 %</div><div class="stat__label">доля одобренных</div></div>
+          <div class="tile"><div class="stat__number">65 %</div><div class="stat__label">конверсия в оплату</div></div>
+          <div class="tile"><div class="stat__number">15,5 млн ₸</div><div class="stat__label">оплачено</div></div>
+          <div class="tile"><div class="stat__number">3,5</div><div class="stat__label">средняя оценка</div></div>
+        </div>
+
+        <figure class="dash">
+          <img src="dashboard.png" alt="Дашборд Power BI: карточки KPI, заявки по курсам, динамика по месяцам, статусы, источники и города" width="1920" height="1080" loading="lazy">
+          <figcaption>Дашборд «Заявки на IT-курсы», страница 16:9. Срезы: категория курса и уровень подготовки.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="section section--alt">
+      <div class="container">
+        <h2 class="left">Три вывода</h2>
+        <p class="section__lead left">Выводы сделаны по диаграммам и срезам дашборда; значения у курсов считаны с диаграммы и округлены.</p>
+        <ol class="insights">
+          <li><strong>Спрос сосредоточен на нескольких курсах.</strong> Backend Developer, Data Analyst и QA Engineer получили примерно по 31 заявке, вместе это около 39 % из 240. Меньше всего заявок у Cybersecurity Specialist и Data Scientist / ML (примерно по 8), то есть этим курсам нужно отдельное продвижение.</li>
+          <li><strong>Одобрено 58,75 % заявок (141 из 240).</strong> Ещё 52 заявки (21,67 %) отклонены, а 47 (19,58 %) ожидают решения. Почти пятая часть заявок висит без ответа, поэтому скорость проверки напрямую влияет на число студентов. Оплачено 15 455 000 ₸, это около 64 400 ₸ на одну заявку.</li>
+          <li><strong>На Семей приходится около 38 % заявок, но оценки там ниже.</strong> Из Семея пришла 91 заявка, средняя оценка 3,27 при общей 3,53. Причину стоит проверить по курсам и преподавателям этого города.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <h2 class="left">Данные и источник</h2>
+        <div class="meta-grid" style="margin-bottom:24px">
+          <div><b>Источник:</b> синтетический учебный набор, создан для лабораторной работы</div>
+          <div><b>Объём:</b> 243 строки заявок (после удаления 3 дубликатов — 240), 13 полей; справочник курсов — 12 строк</div>
+          <div><b>Период:</b> см. поле <code>enroll_date</code></div>
+          <div><b>Обновлено:</b> <span id="updated">—</span></div>
+        </div>
+        <div class="downloads">
+          <a class="button" href="data/it_academy_dataset.xlsx" download>Скачать Excel (.xlsx)</a>
+          <a class="button button--ghost" href="data/enrollments.csv" download>enrollments.csv</a>
+          <a class="button button--ghost" href="data/courses.csv" download>courses.csv</a>
+        </div>
+        <p class="form-status error" id="dlWarn" role="alert" hidden style="text-align:left"></p>
+        <p class="note" style="text-align:left">Данные вымышлены и не относятся к реальным людям. В файле Excel есть лист «Справочник полей» с описанием каждого столбца.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer" id="contacts">
+    <div class="container">
+      <div class="footer__bottom"><p>Шәріпбаев Бақдәулет. Семей, 2026 год. <a href="index.html">На главную</a></p></div>
+    </div>
+  </footer>
+
+  <script src="auth.js"></script>
+  <script>
+  (function () {
+    'use strict';
+    var b = document.getElementById('burger'), n = document.getElementById('nav');
+    if (b && n) b.addEventListener('click', function () {
+      var open = n.classList.toggle('open');
+      b.setAttribute('aria-expanded', String(open));
+      b.textContent = open ? '✕' : '☰';
+    });
+    // Проверяем, что файлы данных лежат в data/ (работает на http/https; на file:// проверка пропускается)
+    if (location.protocol.indexOf('http') === 0) {
+      var missing = [];
+      Array.prototype.forEach.call(document.querySelectorAll('.downloads a'), function (a) {
+        fetch(a.getAttribute('href'), { method: 'HEAD' }).then(function (r) {
+          if (!r.ok) throw new Error(r.status);
+        }).catch(function () {
+          a.classList.add('is-missing');
+          a.setAttribute('aria-disabled', 'true');
+          a.removeAttribute('download');
+          a.addEventListener('click', function (e) { e.preventDefault(); });
+          missing.push(a.getAttribute('href'));
+          var w = document.getElementById('dlWarn');
+          w.hidden = false;
+          w.textContent = 'Не найдены файлы: ' + missing.join(', ') + '. Положите их в папку data/ репозитория.';
+        });
+      });
+    }
+    // Дата обновления: меняйте здесь после каждого обновления дашборда
+    document.getElementById('updated').textContent = new Date('2026-11-02').toLocaleDateString('ru-RU');
+  })();
+  </script>
+</body>
+</html>

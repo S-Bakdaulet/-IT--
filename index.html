@@ -8,6 +8,21 @@
   <title>Каталог IT-профессий — Главная</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
+  <style>
+    .static-notice { background: var(--bg-card); border: 1px solid var(--accent); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 20px; }
+    .static-notice h3 { font-size: 18px; margin-bottom: 8px; }
+    .static-notice p { color: var(--text-muted); margin-bottom: 10px; }
+    .static-notice .modal__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+    .static-notice code { background: var(--bg-main); padding: 2px 6px; border-radius: 6px; }
+    #apply-form.is-static label, #apply-form.is-static .check, #apply-form.is-static #submitBtn { opacity: .55; }
+  </style>
+  <script>
+    // Ссылки для статического режима (GitHub Pages). Впишите свои адреса:
+    window.SITE_CONFIG = {
+      serverUrl: '',   // например 'https://ваш-логин.pythonanywhere.com' (серверная версия с входом и заявками)
+      repoUrl: ''      // например 'https://github.com/ваш-логин/ваш-репозиторий'
+    };
+  </script>
 </head>
 <body>
   <a class="skip-link" href="#catalog">К каталогу</a>
@@ -23,6 +38,7 @@
           <li><a href="#catalog">Каталог</a></li>
           <li><a href="#salaries">Зарплаты</a></li>
           <li><a href="#ai-helper">ИИ-подбор</a></li>
+          <li><a href="analytics.html">Аналитика</a></li>
           <li><a href="#faq">Вопросы</a></li>
           <li><a href="#contacts">Контакты</a></li>
           <li><a href="about.html">О проекте</a></li>
@@ -106,7 +122,7 @@
           <div class="form-status" id="aiStatus" role="status" aria-live="polite"></div>
           <div id="aiResults" aria-live="polite" hidden></div>
         </form>
-        <p class="note">При первом запуске скачивается небольшая модель (около 120 МБ), дальше она берётся из кэша браузера. Лучше всего понимает русский и английский. Результат — подсказка, а не точный диагноз.</p>
+        <p class="note">При первом запуске скачивается небольшая модель (около 120 МБ), дальше она берётся из кэша браузера. Лучше всего понимает русский и английский. Результат — подсказка, а не точный диагноз. Библиотека: <a href="https://huggingface.co/docs/transformers.js" target="_blank" rel="noopener">Transformers.js (официальная документация)</a>; модель: <a href="https://huggingface.co/Xenova/paraphrase-multilingual-MiniLM-L12-v2" target="_blank" rel="noopener">paraphrase-multilingual-MiniLM-L12-v2</a>.</p>
       </div>
     </section>
 
@@ -177,6 +193,16 @@
         <p class="platform-note">Курсы Frontend, Backend и Data Analyst проходят на платформе Stepik: кнопка «Записаться» в карточке такого курса сразу переведёт вас туда. На остальные курсы запишитесь через форму ниже.</p>
 
         <form id="apply-form" class="form" novalidate>
+          <div class="static-notice" id="staticNotice" role="status" hidden>
+            <h3>Приём заявок работает в серверной версии</h3>
+            <p>Сейчас сайт открыт без сервера (например, на GitHub Pages), поэтому форма отключена. Каталог профессий, ИИ-подбор и раздел «Аналитика» работают здесь полностью, а вход, регистрация, заявки и база данных работают, когда запущен Flask-сервер.</p>
+            <p>Запуск на своём компьютере: <code>python app.py</code>, затем откройте <code>http://127.0.0.1:5000</code>.</p>
+            <div class="modal__actions">
+              <a class="button button--small" id="serverLink" href="#" hidden>Открыть серверную версию</a>
+              <a class="button button--small button--ghost" id="repoLink" href="#" target="_blank" rel="noopener" hidden>Исходный код на GitHub</a>
+              <a class="button button--small button--ghost" href="analytics.html">Смотреть аналитику</a>
+            </div>
+          </div>
           <label>Курс
             <select id="selectedCourse" name="course" required>
               <option value="" disabled selected>Выберите курс</option>
@@ -306,8 +332,8 @@
         <div>
           <h4>Разделы</h4>
           <p><a href="#catalog">Каталог</a> · <a href="#salaries">Зарплаты</a></p>
-          <p><a href="#apply">Запись на курс</a> · <a href="about.html">О проекте</a></p>
-          <p><a href="/teacher">Вход для преподавателей</a></p>
+          <p><a href="#apply">Запись на курс</a> · <a href="analytics.html">Аналитика</a> · <a href="about.html">О проекте</a></p>
+          <p><a href="/teacher" id="teacherLink">Вход для преподавателей</a></p>
         </div>
       </div>
       <div class="footer__bottom">

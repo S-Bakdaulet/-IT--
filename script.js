@@ -45,11 +45,38 @@
       (g.seats_left > 0 ? ' · мест: ' + g.seats_left : ' · мест нет');
   }
 
+  // Статический режим: сайт открыт без Flask-сервера (например, на GitHub Pages).
+  // Каталог, ИИ-подбор и аналитика работают, а вход и заявки — только на сервере.
+  function enterStaticMode() {
+    store.noServer = true;
+    const cfg = window.SITE_CONFIG || {};
+    const notice = $('#staticNotice');
+    if (notice) {
+      notice.hidden = false;
+      const srv = $('#serverLink');
+      if (srv && cfg.serverUrl) { srv.href = cfg.serverUrl; srv.hidden = false; }
+      const repo = $('#repoLink');
+      if (repo && cfg.repoUrl) { repo.href = cfg.repoUrl; repo.hidden = false; }
+    }
+    const loginNotice = $('#loginNotice');
+    if (loginNotice) loginNotice.hidden = true;
+    const f = $('#apply-form');
+    if (f) {
+      f.classList.add('is-static');
+      Array.prototype.forEach.call(f.elements, (el) => { el.disabled = true; });
+    }
+    const teacher = $('#teacherLink');
+    if (teacher) teacher.hidden = true;
+  }
+
   async function loadCourses() {
     try {
       store.courses = await Auth.courses();
+      store.noServer = false;
     } catch (err) {
       store.courses = [];
+      // Нет статуса ответа сервера (GitHub Pages вернул 404-страницу, сервер выключен) — статический режим
+      if (!err.status) enterStaticMode();
     }
     store.byCatalog = {};
     store.byId = {};
@@ -552,7 +579,7 @@
     const keep = courseSel.value;
     // В форму попадают только курсы с группами; курсы с переходом на Stepik записывают через кнопку в каталоге
     const payable = store.courses.filter((c) => !c.external_url);
-    courseSel.innerHTML = '<option value="" disabled selected>' + (store.courses.length ? 'Выберите курс' : 'Курсы недоступны: сервер не отвечает') + '</option>' +
+    courseSel.innerHTML = '<option value="" disabled selected>' + (store.courses.length ? 'Выберите курс' : store.noServer ? 'Доступно в серверной версии сайта' : 'Курсы недоступны: сервер не отвечает') + '</option>' +
       payable.map((c) => '<option value="' + c.id + '">' + esc(c.title) + ' — ' + money(c.price) + (c.duration ? ' · ' + esc(c.duration) : '') + '</option>').join('');
     if (keep && store.byId[keep]) courseSel.value = keep;
     fillGroups();
@@ -612,7 +639,7 @@
     // Кто вошёл: подставляем телефон, гостю показываем приглашение войти
     Auth.me().then((me) => {
       store.me = me;
-      $('#loginNotice').hidden = !!me;
+      $('#loginNotice').hidden = !!me || store.noServer;
       if (me && me.role !== 'student') showStatus('Вы вошли как ' + (me.role === 'admin' ? 'администратор' : 'преподаватель') + ': заявки подают студенты.', 'error');
       if (me && me.phone && !phone.value) { phone.value = me.phone; phone.dispatchEvent(new Event('input')); }
     });

@@ -1,0 +1,11 @@
+﻿instructor_id,full_name,email,specialization,experience_years,city,hire_date
+1,Нұрлан Мұратов,nurlan.muratov@example.com,Python / Backend,11,Павлодар,2023-10-25
+2,Айнұр Нұрпеисова,ainur.nurpeisova@example.com,Web Frontend,12,Павлодар,2023-07-24
+3,Ермек Жақыпов,yermek.zhakypov@example.com,Data Analytics,11,Қарағанды,2024-03-06
+4,Гүлназ Сүлейова,gulnaz.suleiova@example.com,Machine Learning,12,Алматы,2022-09-03
+5,Айгерім Әбдіова,aigerim.abdiova@example.com,UI/UX Design,4,Семей,2022-10-22
+6,Нұрлан Сағынов,nurlan.sagynov@example.com,Mobile & Game Development,3,Қарағанды,2023-05-18
+7,Серік Бекетов,serik.beketov@example.com,Cybersecurity,9,Астана,2022-12-23
+8,Аружан Тлеуова,aruzhan.tleuova@example.com,DevOps,14,Павлодар,2023-10-16
+9,Ержан Қалиов,yerzhan.kaliov@example.com,QA Engineering,8,Семей,2023-07-25
+10,Әлия Қасымова,aliya.kasymova@example.com,IT Project Management,7,Алматы,2022-05-25

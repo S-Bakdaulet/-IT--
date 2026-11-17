@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Мои заявки — IT Academy</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="container header__inner">
+      <a class="logo" href="index.html">IT-Professions</a>
+      <nav><ul><li><a href="index.html">← На сайт</a></li></ul></nav>
+    </div>
+  </header>
+
+  <main class="section">
+    <div class="container">
+      <h2 style="text-align:left" id="hello">Мой аккаунт</h2>
+      <p class="section__lead" style="text-align:left;margin-left:0" id="meta"></p>
+      <div class="modal__actions" style="margin-bottom:28px">
+        <a class="button" href="index.html#apply-form" id="newBtn">Записаться на курс</a>
+        <a class="button button--ghost" href="/admin" id="adminLink" hidden>Админ-панель</a>
+        <a class="button button--ghost" href="/teacher/dashboard" id="teacherLink" hidden>Кабинет преподавателя</a>
+        <button class="button button--ghost" type="button" id="logout">Выйти</button>
+      </div>
+
+      <section id="studentArea" hidden>
+        <div id="approvedArea" hidden>
+          <h3>Мои курсы</h3>
+          <div class="cards" id="approvedCards" style="margin-bottom:32px"></div>
+        </div>
+
+        <h3>Все заявки</h3>
+        <div class="form-status" id="msg" role="status" aria-live="polite"></div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr>
+              <th>№</th><th>Курс</th><th>Длительность</th><th>Группа и расписание</th><th>Старт</th><th>Преподаватель</th><th>Стоимость</th><th>Статус</th><th>Оплата</th><th></th>
+            </tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <p class="note" style="text-align:left">«На рассмотрении» — заявку ещё проверяет администратор. Отозвать можно только такую заявку.</p>
+      </section>
+    </div>
+  </main>
+
+  <script src="auth.js"></script>
+  <script>
+  (function () {
+    'use strict';
+    var $ = function (s) { return document.querySelector(s); };
+    var LABELS = { pending: 'На рассмотрении', approved: 'Одобрена', rejected: 'Отклонена' };
+    var PAY = { unpaid: 'Не оплачено', pending: 'В ожидании', paid: 'Оплачено' };
+    var ROLES = { student: 'студент', teacher: 'преподаватель', admin: 'администратор' };
+
+    function td(tr, content) {
+      var c = document.createElement('td');
+      if (content && content.nodeType) c.appendChild(content); else c.textContent = content;
+      tr.appendChild(c);
+      return c;
+    }
+    function date(s) { var d = new Date(s + 'T00:00:00'); return isNaN(d) ? s : d.toLocaleDateString('ru-RU'); }
+    function money(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₸'; }
+    function msg(text, bad) { var m = $('#msg'); m.textContent = text; m.className = 'form-status ' + (bad ? 'error' : 'success'); }
+
+    function fact(label, value) {
+      var d = document.createElement('div'), s = document.createElement('span');
+      s.textContent = label; d.appendChild(s); d.appendChild(document.createTextNode(value));
+      return d;
+    }
+    // Карточки «Мои курсы»: всё, что нужно знать об одобренном курсе
+    function renderApproved(items) {
+      var box = $('#approvedCards'); box.textContent = '';
+      $('#approvedArea').hidden = !items.length;
+      items.forEach(function (r) {
+        var card = document.createElement('article'); card.className = 'course-card';
+        var h = document.createElement('h3'); h.textContent = r.course_title; card.appendChild(h);
+        var pill = document.createElement('span'); pill.className = 'pill pill--approved'; pill.textContent = 'Одобрена'; card.appendChild(pill);
+        var facts = document.createElement('div'); facts.className = 'facts';
+        facts.appendChild(fact('Расписание', r.schedule_time));
+        facts.appendChild(fact('Старт', date(r.start_date)));
+        facts.appendChild(fact('Длительность', r.duration || 'уточняется'));
+        facts.appendChild(fact('Преподаватель', r.teacher_name || 'будет назначен'));
+        facts.appendChild(fact('Стоимость', money(r.price)));
+        facts.appendChild(fact('Оплата', PAY[r.payment_status] || r.payment_status));
+        card.appendChild(facts);
+        box.appendChild(card);
+      });
+    }
+
+    function load() {
+      return Auth.myEnrollments().then(function (list) {
+        var body = $('#rows');
+        body.textContent = '';
+        renderApproved(list.filter(function (r) { return r.status === 'approved'; }));
+        if (!list.length) {
+          var tr = document.createElement('tr');
+          td(tr, 'Заявок пока нет. Выберите курс и группу на главной странице.').colSpan = 10;
+          body.appendChild(tr);
+          return;
+        }
+        list.forEach(function (r) {
+          var tr = document.createElement('tr');
+          td(tr, r.id);
+          td(tr, r.course_title);
+          td(tr, r.duration || '—');
+          td(tr, r.schedule_time);
+          td(tr, date(r.start_date));
+          td(tr, r.teacher_name || 'будет назначен');
+          td(tr, money(r.price));
+          var pill = document.createElement('span');
+          pill.className = 'pill pill--' + r.status;
+          pill.textContent = LABELS[r.status] || r.status;
+          td(tr, pill);
+          var pay = document.createElement('span');
+          pay.className = 'pill pill--' + (r.payment_status === 'pending' ? 'payment-pending' : r.payment_status);
+          pay.textContent = PAY[r.payment_status] || r.payment_status;
+          td(tr, pay);
+          var act = td(tr, '');
+          if (r.status === 'pending') {
+            var b = document.createElement('button');
+            b.type = 'button'; b.className = 'button button--small button--danger'; b.textContent = 'Отозвать';
+            b.addEventListener('click', function () {
+              if (!confirm('Отозвать заявку на «' + r.course_title + '»?')) return;
+              Auth.cancelEnrollment(r.id).then(function () { msg('Заявка отозвана'); return load(); })
+                .catch(function (e) { msg(e.message, true); });
+            });
+            act.appendChild(b);
+          }
+          body.appendChild(tr);
+        });
+      });
+    }
+
+    Auth.me().then(function (u) {
+      if (!u) { location.href = 'login.html?next=account.html'; return; }
+      $('#hello').textContent = 'Здравствуйте, ' + u.name.split(' ')[0] + '!';
+      $('#meta').textContent = u.email + ' · ' + (ROLES[u.role] || u.role);
+      if (u.role === 'admin') $('#adminLink').hidden = false;
+      if (u.role === 'teacher') $('#teacherLink').hidden = false;
+      if (u.role !== 'student') { $('#newBtn').hidden = true; return; }   // у админа и учителя своих заявок нет
+      $('#studentArea').hidden = false;
+      return load().catch(function (e) { msg(e.message, true); });
+    });
+
+    $('#logout').addEventListener('click', function () {
+      Auth.logout().then(function () { location.href = 'index.html'; });
+    });
+  })();
+  </script>
+</body>
+</html>

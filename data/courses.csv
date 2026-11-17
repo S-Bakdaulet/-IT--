@@ -1,0 +1,13 @@
+﻿course_id,catalog_id,course_title,category,duration,price_kzt,instructor_id
+1,frontend,Frontend Developer,Web,6 месяцев,150000,2
+2,backend,Backend Developer,Backend,8 месяцев,180000,1
+3,uiux,UI/UX Designer,Design,5 месяцев,140000,5
+4,fullstack,Fullstack Developer,Web,12 месяцев,250000,2
+5,mobile,Mobile Developer,Mobile,8 месяцев,200000,6
+6,analyst,Data Analyst,Data,5 месяцев,130000,3
+7,datascience,Data Scientist / ML,Data,12 месяцев,280000,4
+8,devops,DevOps Engineer,DevOps,10 месяцев,260000,8
+9,qa,QA Engineer,QA,4 месяца,100000,9
+10,security,Cybersecurity Specialist,Security,12 месяцев,240000,7
+11,gamedev,Game Developer,Games,10 месяцев,190000,6
+12,pm,IT Project Manager,Management,6 месяцев,120000,10

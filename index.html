@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Каталог IT-профессий: Frontend, Backend, UI/UX, Data, DevOps, QA и другие. Зарплаты, навыки, дорожные карты, подбор профессии и запись на курсы.">
+  <meta name="theme-color" content="#0f172a">
+  <title>Каталог IT-профессий — Главная</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .static-notice { background: var(--bg-card); border: 1px solid var(--accent); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 20px; }
+    .static-notice h3 { font-size: 18px; margin-bottom: 8px; }
+    .static-notice p { color: var(--text-muted); margin-bottom: 10px; }
+    .static-notice .modal__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+    .static-notice code { background: var(--bg-main); padding: 2px 6px; border-radius: 6px; }
+    #apply-form.is-static label, #apply-form.is-static .check, #apply-form.is-static #submitBtn { opacity: .55; }
+  </style>
+  <script>
+    // Ссылки для статического режима (GitHub Pages). Впишите свои адреса:
+    window.SITE_CONFIG = {
+      serverUrl: '',   // например 'https://ваш-логин.pythonanywhere.com' (серверная версия с входом и заявками)
+      repoUrl: ''      // например 'https://github.com/ваш-логин/ваш-репозиторий'
+    };
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#catalog">К каталогу</a>
+
+  <!-- ШАПКА -->
+  <header class="header">
+    <div class="container header__inner">
+      <a class="logo" href="index.html">IT-Professions</a>
+      <button class="burger" id="burger" aria-label="Открыть меню" aria-expanded="false" aria-controls="nav">☰</button>
+      <nav id="nav" aria-label="Основное меню">
+        <ul>
+          <li><a href="index.html">Главная</a></li>
+          <li><a href="#catalog">Каталог</a></li>
+          <li><a href="#salaries">Зарплаты</a></li>
+          <li><a href="#ai-helper">ИИ-подбор</a></li>
+          <li><a href="analytics.html">Аналитика</a></li>
+          <li><a href="#faq">Вопросы</a></li>
+          <li><a href="#contacts">Контакты</a></li>
+          <li><a href="about.html">О проекте</a></li>
+          <li><a href="login.html" id="accountLink">Войти</a></li>
+          <li><a class="button" href="#apply">Записаться</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ОБЛОЖКА -->
+  <section class="hero">
+    <div class="container">
+      <h1>Каталог востребованных IT-специальностей</h1>
+      <p>Выберите направление для обучения и построения успешной карьеры в сфере информационных технологий. Сравните профессии, узнайте зарплаты и пройдите тест-подбор.</p>
+      <div class="hero__actions">
+        <a class="button" href="#catalog">Смотреть каталог</a>
+        <button class="button button--ghost" type="button" id="heroQuiz">Подобрать профессию</button>
+      </div>
+      <div class="stats" id="heroStats" aria-label="Коротко о каталоге"></div>
+    </div>
+  </section>
+
+  <main>
+    <!-- КАТАЛОГ -->
+    <section class="section" id="catalog">
+      <div class="container">
+        <h2>Популярные направления</h2>
+        <p class="section__lead">Найдите профессию по названию или навыку, отфильтруйте по категории и отметьте до трёх карточек, чтобы сравнить их.</p>
+
+        <div class="toolbar">
+          <input type="search" id="search" placeholder="Поиск: Python, дизайн, SQL, Figma…" aria-label="Поиск по каталогу" autocomplete="off">
+          <select id="sort" aria-label="Сортировка">
+            <option value="default">По умолчанию</option>
+            <option value="salary-desc">Зарплата: по убыванию</option>
+            <option value="salary-asc">Зарплата: по возрастанию</option>
+            <option value="demand">Самый большой спрос</option>
+            <option value="easy">Проще начать</option>
+            <option value="name">По алфавиту</option>
+          </select>
+        </div>
+        <div class="chips" id="chips" role="group" aria-label="Категории"></div>
+        <p class="result-count" id="resultCount" aria-live="polite"></p>
+
+        <div class="cards" id="cards">
+          <noscript><p class="empty">Для работы каталога включите JavaScript.</p></noscript>
+        </div>
+      </div>
+    </section>
+
+    <!-- ТЕСТ-ПОДБОР -->
+    <section class="section section--alt" id="quiz-section">
+      <div class="container">
+        <div class="cta-box">
+          <h2>Не знаете, что выбрать?</h2>
+          <p>Ответьте на 6 коротких вопросов. Мы сопоставим ваши склонности с профессиями каталога и покажем три самых подходящих.</p>
+          <button class="button" type="button" id="openQuiz">Пройти тест (1 минута)</button>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ЗАРПЛАТЫ -->
+    <section class="section" id="salaries">
+      <div class="container">
+        <h2>Сколько зарабатывают IT-специалисты</h2>
+        <p class="section__lead">Ориентировочный доход в месяц в Казахстане: от уровня junior до senior. Профессии отсортированы по верхней границе.</p>
+        <div class="legend">
+          <span><i></i>диапазон junior — senior</span>
+          <span><i class="mid"></i>middle</span>
+        </div>
+        <div class="chart" id="salaryChart"></div>
+        <p class="note">Цифры ориентировочные и зависят от компании, города и опыта. Перед выбором сверяйтесь с актуальными вакансиями.</p>
+      </div>
+    </section>
+
+    <!-- ПУТЬ -->
+    <section class="section section--alt" id="path">
+      <div class="container">
+        <h2>Как войти в IT с нуля</h2>
+        <p class="section__lead">Универсальный маршрут, который подходит для большинства направлений.</p>
+        <ol class="steps">
+          <li><strong>Выберите направление.</strong> Изучите карточки, сравните профессии и пройдите тест.</li>
+          <li><strong>Освойте базу.</strong> Английский для чтения документации, основы выбранной профессии, Git.</li>
+          <li><strong>Делайте проекты.</strong> 3–5 проектов в портфолио ценятся выше любых сертификатов.</li>
+          <li><strong>Ищите стажировку.</strong> Резюме, GitHub, LinkedIn и отклики на позиции junior.</li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- КУРСҚА ЖАЗЫЛУ ФОРМАСЫ -->
+    <section class="section" id="levels">
+      <div class="container">
+        <h2>Выберите свой уровень</h2>
+        <p class="section__lead">Нажмите на подходящую карточку: уровень подставится в заявку, и вы сразу перейдёте к форме.</p>
+        <div class="levels" role="group" aria-label="Уровень подготовки">
+          <button class="level-card" type="button" data-level="Новичок (с нуля)">
+            <span class="level-card__tag">Уровень 1</span>
+            <strong>Новичок (с нуля)</strong>
+            <span>Начнём с азов: как устроен интернет, основы HTML/CSS, Excel и SQL, работа с Git.</span>
+          </button>
+          <button class="level-card" type="button" data-level="Знаю основы">
+            <span class="level-card__tag">Уровень 2</span>
+            <strong>Знаю основы</strong>
+            <span>Есть базовый синтаксис: закрепим практикой, соберём первый полноценный проект.</span>
+          </button>
+          <button class="level-card" type="button" data-level="Есть опыт">
+            <span class="level-card__tag">Уровень 3</span>
+            <strong>Есть опыт</strong>
+            <span>Углубление, архитектура, командная работа и подготовка к собеседованиям.</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- КУРСҚА ЖАЗЫЛУ ФОРМАСЫ -->
+    <section class="section section--alt" id="apply">
+      <div class="container">
+        <h2>Записаться на курс</h2>
+        <p class="section__lead">Выберите курс и удобную группу с расписанием. Администратор рассмотрит заявку, и её статус появится в разделе «Мои заявки».</p>
+
+        <p class="login-notice" id="loginNotice" hidden>
+          Чтобы записаться, <a href="login.html?next=index.html">войдите</a> или <a href="login.html?mode=register&next=index.html">создайте аккаунт</a>:
+          так вы сможете следить за статусом заявки.
+        </p>
+
+        <p class="platform-note">Курсы Frontend, Backend и Data Analyst проходят на платформе Stepik: кнопка «Записаться» в карточке такого курса сразу переведёт вас туда. На остальные курсы запишитесь через форму ниже.</p>
+
+        <form id="apply-form" class="form" novalidate>
+          <div class="static-notice" id="staticNotice" role="status" hidden>
+            <h3>Приём заявок работает в серверной версии</h3>
+            <p>Сейчас сайт открыт без сервера (например, на GitHub Pages), поэтому форма отключена. Каталог профессий, ИИ-подбор и раздел «Аналитика» работают здесь полностью, а вход, регистрация, заявки и база данных работают, когда запущен Flask-сервер.</p>
+            <p>Запуск на своём компьютере: <code>python app.py</code>, затем откройте <code>http://127.0.0.1:5000</code>.</p>
+            <div class="modal__actions">
+              <a class="button button--small" id="serverLink" href="#" hidden>Открыть серверную версию</a>
+              <a class="button button--small button--ghost" id="repoLink" href="#" target="_blank" rel="noopener" hidden>Исходный код на GitHub</a>
+              <a class="button button--small button--ghost" href="analytics.html">Смотреть аналитику</a>
+            </div>
+          </div>
+          <label>Курс
+            <select id="selectedCourse" name="course" required>
+              <option value="" disabled selected>Выберите курс</option>
+            </select>
+            <span class="field-error" data-for="selectedCourse"></span>
+          </label>
+
+          <label>Группа и расписание
+            <select id="selectedGroup" name="group" required disabled>
+              <option value="" disabled selected>Сначала выберите курс</option>
+            </select>
+            <span class="field-error" data-for="selectedGroup"></span>
+          </label>
+
+          <div class="form__row">
+            <label>Телефон
+              <input type="tel" id="studentPhone" name="phone" placeholder="+7 707 123 45 67" inputmode="tel" autocomplete="tel" required>
+              <span class="field-error" data-for="studentPhone"></span>
+            </label>
+            <label>Ваш уровень
+              <select id="studentLevel" name="level">
+                <option>Новичок (с нуля)</option>
+                <option>Знаю основы</option>
+                <option>Есть опыт</option>
+              </select>
+            </label>
+          </div>
+
+          <label>Комментарий <small>(необязательно)</small>
+            <textarea id="studentComment" name="comment" maxlength="500" placeholder="Что хотите изучить, есть ли вопросы"></textarea>
+          </label>
+
+          <!-- Поле-ловушка для ботов: человек его не видит -->
+          <input class="hp" type="text" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+          <label class="check">
+            <input type="checkbox" id="consent" required>
+            <span>Согласен(на) на обработку введённых данных для связи со мной по поводу курса.</span>
+          </label>
+          <span class="field-error" data-for="consent"></span>
+
+          <button type="submit" class="button" id="submitBtn">Отправить заявку</button>
+          <div class="form-status" id="formStatus" role="status" aria-live="polite"></div>
+        </form>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" id="faq">
+      <div class="container">
+        <h2>Частые вопросы</h2>
+        <p class="section__lead">Короткие ответы на то, о чём спрашивают чаще всего.</p>
+        <div class="faq">
+          <details>
+            <summary>Можно ли начать с нуля, без технического образования?</summary>
+            <p>Да. Многие специалисты приходят в IT из других сфер. Проще всего входить через QA, UI/UX, Data Analyst и Frontend: порог входа ниже, а первые результаты видны через несколько месяцев.</p>
+          </details>
+          <details>
+            <summary>Нужна ли математика?</summary>
+            <p>Для Frontend, QA, UI/UX и Project Manager школьной математики достаточно. Для Data Science, Data Analyst, кибербезопасности и игровой разработки математика нужна глубже, но её можно изучать параллельно.</p>
+          </details>
+          <details>
+            <summary>Нужен ли английский язык?</summary>
+            <p>Чтение документации и статей на английском нужно почти везде. Для старта хватит уровня «могу читать с переводчиком», разговорный язык подтянется по мере работы.</p>
+          </details>
+          <details>
+            <summary>Через сколько можно найти первую работу?</summary>
+            <p>Ориентировочные сроки подготовки указаны в карточке каждой профессии: от 4–7 месяцев для QA до 12–18 месяцев для Data Science и кибербезопасности. Реальный срок зависит от вашего ритма и количества практики.</p>
+          </details>
+          <details>
+            <summary>Как проходит запись на курс?</summary>
+            <p>Вы входите в аккаунт, выбираете курс и группу с расписанием и отправляете заявку. Администратор одобряет её, когда в группе есть место. Статус виден в разделе «Мои заявки».</p>
+          </details>
+          <details>
+            <summary>Откуда взяты зарплаты?</summary>
+            <p>Это ориентировочные диапазоны по уровням junior, middle и senior для рынка Казахстана. Они нужны для сравнения направлений между собой, а не как обещание конкретного дохода.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ОКНО: ПОДРОБНОСТИ ПРОФЕССИИ -->
+  <dialog id="detail" class="modal" aria-labelledby="detailTitle">
+    <button class="close-btn" type="button" data-close aria-label="Закрыть">&times;</button>
+    <div class="modal__body" id="detailBody"></div>
+  </dialog>
+
+  <!-- ОКНО: СРАВНЕНИЕ -->
+  <dialog id="compare" class="modal modal--wide" aria-labelledby="compareTitle">
+    <button class="close-btn" type="button" data-close aria-label="Закрыть">&times;</button>
+    <div class="modal__body">
+      <h2 id="compareTitle">Сравнение профессий</h2>
+      <div class="table-wrap" id="compareBody"></div>
+    </div>
+  </dialog>
+
+  <!-- ОКНО: ТЕСТ -->
+  <dialog id="quiz" class="modal" aria-labelledby="quizTitle">
+    <button class="close-btn" type="button" data-close aria-label="Закрыть">&times;</button>
+    <div class="modal__body" id="quizBody"></div>
+  </dialog>
+
+  <!-- ПАНЕЛЬ СРАВНЕНИЯ -->
+  <div class="compare-bar" id="compareBar" role="region" aria-label="Сравнение">
+    <span id="compareCount"></span>
+    <button class="button button--small" type="button" id="compareOpen">Сравнить</button>
+    <button class="button button--small button--ghost" type="button" id="compareClear">Сбросить</button>
+  </div>
+
+  <button class="to-top" id="toTop" type="button" aria-label="Наверх">↑</button>
+
+  <!-- КОНТАКТЫ (ФУТЕР) -->
+  <footer class="footer" id="contacts">
+    <div class="container">
+      <div class="footer__contacts">
+        <div>
+          <h4>Контакты</h4>
+          <p>Email: <a href="mailto:info@it-professions.kz">info@it-professions.kz</a></p>
+          <p>Тел: <a href="tel:+77770075666">+7 (777) 007-56-66</a></p>
+        </div>
+        <div>
+          <h4>Локация</h4>
+          <p>г. Семей, Казахстан</p>
+          <p>Учебный проект 2026</p>
+        </div>
+        <div>
+          <h4>Разделы</h4>
+          <p><a href="#catalog">Каталог</a> · <a href="#salaries">Зарплаты</a></p>
+          <p><a href="#apply">Запись на курс</a> · <a href="analytics.html">Аналитика</a> · <a href="about.html">О проекте</a></p>
+          <p><a href="/teacher" id="teacherLink">Вход для преподавателей</a></p>
+        </div>
+      </div>
+      <div class="footer__bottom">
+        <p>Шәріпбаев Бақдәулет. Семей, 2026 год.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="auth.js"></script>
+  <script src="script.js"></script>
+  <script src="chat.js"></script>
+</body>
+</html>

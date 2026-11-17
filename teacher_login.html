@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Вход для преподавателей — IT Academy</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="container header__inner">
+      <a class="logo" href="/index.html">IT-Professions</a>
+      <nav><ul><li><a href="/login.html">Вход для студентов</a></li><li><a href="/index.html">← На сайт</a></li></ul></nav>
+    </div>
+  </header>
+
+  <main class="section">
+    <div class="container">
+      <h2>Портал преподавателя</h2>
+      <p class="section__lead">Здесь видны только ваши группы и студенты в них. Учётную запись преподавателя создаёт администратор.</p>
+
+      <form class="form" id="teacherForm" novalidate>
+        <label>Почта
+          <input type="email" id="email" maxlength="120" autocomplete="email" required>
+        </label>
+        <label>Пароль
+          <input type="password" id="password" maxlength="128" autocomplete="current-password" required>
+        </label>
+        <button type="submit" class="button" id="submit">Войти</button>
+        <div class="form-status" id="status" role="status" aria-live="polite"></div>
+      </form>
+    </div>
+  </main>
+
+  <script src="/auth.js"></script>
+  <script>
+  (function () {
+    'use strict';
+    var $ = function (s) { return document.querySelector(s); };
+    function show(text, ok) { var s = $('#status'); s.textContent = text; s.className = 'form-status ' + (ok ? 'success' : 'error'); }
+
+    $('#teacherForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var email = $('#email').value.trim(), password = $('#password').value;
+      if (!email || !password) { show('Введите почту и пароль.', false); return; }
+      $('#submit').disabled = true;
+      show('Подождите…', true);
+      try {
+        await Auth.teacherLogin(email, password);
+        location.href = '/teacher/dashboard';
+      } catch (err) {
+        show(err.message === 'NO_SERVER' ? 'Нет связи с сервером. Запустите python app.py.' : err.message, false);
+      } finally {
+        $('#submit').disabled = false;
+      }
+    });
+  })();
+  </script>
+</body>
+</html>

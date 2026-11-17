@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Мои группы — IT Academy</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="container header__inner">
+      <a class="logo" href="/index.html">IT-Professions</a>
+      <nav><ul>
+        <li><a href="/index.html">← На сайт</a></li>
+        <li><button class="button button--small button--ghost" type="button" id="logout">Выйти</button></li>
+      </ul></nav>
+    </div>
+  </header>
+
+  <main class="section">
+    <div class="container">
+      <h2 style="text-align:left" id="hello">Мои группы</h2>
+      <p class="section__lead" style="text-align:left;margin-left:0" id="meta">Загрузка…</p>
+      <div class="form-status" id="msg" role="status" aria-live="polite" style="text-align:left"></div>
+      <div class="stats" id="tiles" style="margin-bottom:28px"></div>
+
+      <div class="panel" id="weekPanel" hidden>
+        <h3>Расписание недели</h3>
+        <div class="week" id="week"></div>
+        <p class="note" id="weekNote" style="text-align:left" hidden></p>
+      </div>
+
+      <div class="panel" id="overviewPanel" hidden>
+        <h3>Мои группы: обзор</h3>
+        <div class="table-wrap"><table class="table">
+          <thead><tr><th>Курс</th><th>Расписание</th><th>Старт</th><th>Записано</th><th>Ожидают</th></tr></thead>
+          <tbody id="overview"></tbody>
+        </table></div>
+      </div>
+
+      <div id="groups"></div>
+    </div>
+  </main>
+
+  <script src="/auth.js"></script>
+  <script>
+  (function () {
+    'use strict';
+    var $ = function (s) { return document.querySelector(s); };
+    var STATUS = { pending: 'Ожидает', approved: 'Записан' };
+
+    function h(tag, props, kids) {
+      var e = document.createElement(tag);
+      Object.keys(props || {}).forEach(function (k) { if (k === 'class') e.className = props[k]; else if (k === 'text') e.textContent = props[k]; else e[k] = props[k]; });
+      [].concat(kids || []).forEach(function (c) { if (c != null) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+      return e;
+    }
+    function td(tr, content) { var c = h('td', {}, content === undefined ? [] : [content]); tr.appendChild(c); return c; }
+    function date(s) { var d = new Date(s + 'T00:00:00'); return isNaN(d) ? s : d.toLocaleDateString('ru-RU'); }
+    function plural(n, a, b, c) { var m = n % 100, k = n % 10; return n + ' ' + (m > 10 && m < 20 ? c : k === 1 ? a : k > 1 && k < 5 ? b : c); }
+
+    var DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    function parseDays(text) {
+      return DAYS.map(function (d, i) { return new RegExp('(^|[^А-Яа-яЁё])' + d + '(?![А-Яа-яЁё])').test(text) ? i : -1; }).filter(function (i) { return i >= 0; });
+    }
+    function parseTime(text) { var m = text.match(/\d{1,2}[:.]\d{2}/); return m ? m[0].replace('.', ':').replace(/^(\d):/, '0$1:') : ''; }
+    function startInfo(iso) {
+      var d = new Date(iso + 'T00:00:00'), t = new Date(); t.setHours(0, 0, 0, 0);
+      var diff = Math.round((d - t) / 86400000);
+      if (isNaN(diff)) return { text: '', cls: '' };
+      if (diff > 0) return { text: 'старт через ' + plural(diff, 'день', 'дня', 'дней'), cls: 'pill--pending' };
+      return { text: diff === 0 ? 'старт сегодня' : 'идёт', cls: 'pill--approved' };
+    }
+    function count(g, status) { return g.students.filter(function (s) { return s.status === status; }).length; }
+
+    function renderOverview(groups) {
+      var tiles = $('#tiles'); tiles.textContent = '';
+      var approved = groups.reduce(function (n, g) { return n + count(g, 'approved'); }, 0);
+      var pending = groups.reduce(function (n, g) { return n + count(g, 'pending'); }, 0);
+      [['Групп', groups.length], ['Студентов записано', approved], ['Заявок ожидает', pending]].forEach(function (x) {
+        tiles.appendChild(h('div', { class: 'tile' }, [h('div', { class: 'stat__number', text: String(x[1]) }), h('div', { class: 'stat__label', text: x[0] })]));
+      });
+      if (!groups.length) return;
+
+      // недельная сетка: дни и время берутся из текста расписания («Пн/Ср/Пт 18:00»)
+      var cols = DAYS.map(function () { return []; }), loose = [];
+      groups.forEach(function (g) {
+        var days = parseDays(g.schedule_time);
+        if (!days.length) { loose.push(g); return; }
+        days.forEach(function (d) { cols[d].push({ g: g, time: parseTime(g.schedule_time) }); });
+      });
+      var week = $('#week'); week.textContent = '';
+      DAYS.forEach(function (name, i) {
+        var col = h('div', { class: 'week__day' + (cols[i].length ? ' week__day--on' : '') }, [h('h4', { text: name })]);
+        cols[i].sort(function (a, b) { return a.time < b.time ? -1 : 1; }).forEach(function (it) {
+          col.appendChild(h('a', { class: 'week__item', href: '#group-' + it.g.id }, [h('b', { text: it.time || 'время —' }), it.g.course_title]));
+        });
+        week.appendChild(col);
+      });
+      if (loose.length) {
+        var n = $('#weekNote'); n.hidden = false;
+        n.textContent = 'Без привязки к дням недели (см. таблицу ниже): ' + loose.map(function (g) { return g.course_title + ' — ' + g.schedule_time; }).join('; ');
+      }
+      $('#weekPanel').hidden = false;
+
+      var body = $('#overview'); body.textContent = '';
+      groups.forEach(function (g) {
+        var tr = h('tr'), st = startInfo(g.start_date);
+        td(tr, h('span', {}, [h('a', { href: '#group-' + g.id, text: g.course_title }), h('small', { text: g.duration ? 'Длительность: ' + g.duration : '' })]));
+        td(tr, g.schedule_time);
+        td(tr, h('span', {}, [date(g.start_date), h('small', {}, [h('span', { class: 'pill ' + st.cls, text: st.text })])]));
+        td(tr, count(g, 'approved') + ' из ' + g.max_students);
+        td(tr, String(count(g, 'pending')));
+        body.appendChild(tr);
+      });
+      $('#overviewPanel').hidden = false;
+    }
+
+    function render(groups) {
+      var root = $('#groups'); root.textContent = '';
+      if (!groups.length) {
+        root.appendChild(h('div', { class: 'group-card' }, [h('p', { class: 'muted', text: 'Вам пока не назначено ни одной группы. Обратитесь к администратору.' })]));
+        return;
+      }
+      groups.forEach(function (g) {
+        var card = h('div', { class: 'group-card', id: 'group-' + g.id });
+        card.appendChild(h('div', { class: 'group-card__head' }, [
+          h('h3', { text: g.course_title }),
+          h('span', { class: 'pill pill--approved', text: 'Записано: ' + g.approved_count + ' из ' + g.max_students })
+        ]));
+        var st = startInfo(g.start_date);
+        card.appendChild(h('p', { class: 'muted' }, [g.schedule_time + ' · старт ' + date(g.start_date) + (g.duration ? ' · ' + g.duration : '') + ' ', h('span', { class: 'pill ' + st.cls, text: st.text })]));
+
+        if (!g.students.length) {
+          card.appendChild(h('p', { class: 'note', style: 'text-align:left', text: 'В этой группе пока нет студентов.' }));
+        } else {
+          var head = h('tr', {}, ['№', 'Студент', 'Телефон', 'Почта', 'Уровень / комментарий', 'Статус'].map(function (t) { return h('th', { text: t }); }));
+          var body = h('tbody');
+          g.students.forEach(function (s, i) {
+            var tr = h('tr');
+            td(tr, String(i + 1)); td(tr, s.name);
+            td(tr, s.phone ? h('a', { href: 'tel:' + s.phone.replace(/[^\d+]/g, ''), text: s.phone }) : '—');
+            td(tr, h('a', { href: 'mailto:' + s.email, text: s.email }));
+            td(tr, h('span', {}, [s.level || '—', h('small', { text: s.comment || '' })]));
+            td(tr, h('span', { class: 'pill pill--' + s.status, text: STATUS[s.status] || s.status }));
+            body.appendChild(tr);
+          });
+          card.appendChild(h('div', { class: 'table-wrap' }, [h('table', { class: 'table' }, [h('thead', {}, [head]), body])]));
+        }
+        root.appendChild(card);
+      });
+    }
+
+    $('#logout').addEventListener('click', function () { Auth.logout().then(function () { location.href = '/teacher'; }); });
+
+    Auth.me().then(function (u) {
+      if (!u || u.role !== 'teacher') { location.href = '/teacher'; return; }
+      $('#hello').textContent = 'Здравствуйте, ' + u.name.split(' ')[0] + '!';
+      return Auth.teacherGroups().then(function (groups) {
+        var total = groups.reduce(function (n, g) { return n + g.students.length; }, 0);
+        $('#meta').textContent = plural(groups.length, 'группа', 'группы', 'групп') + ', ' + plural(total, 'студент', 'студента', 'студентов') + '. Показаны только ваши группы.';
+        renderOverview(groups);
+        render(groups);
+      });
+    }).catch(function (e) {
+      $('#meta').textContent = '';
+      var m = $('#msg'); m.textContent = e.status === 401 || e.status === 403 ? 'Сессия закончилась. Войдите снова.' : e.message; m.className = 'form-status error';
+      if (e.status === 401 || e.status === 403) setTimeout(function () { location.href = '/teacher'; }, 1200);
+    });
+  })();
+  </script>
+</body>
+</html>

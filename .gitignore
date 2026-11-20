@@ -1,9 +1,8 @@
-venv/
-.venv/
-.idea/
-__pycache__/
-*.pyc
 *.db
-*.db-journal
-.env
 .secret_key
+venv/
+__pycache__/
+ACCOUNTS.md
+accounts.csv
+credentials.csv
+admins.csv

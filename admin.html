@@ -6,6 +6,12 @@
   <meta name="robots" content="noindex, nofollow">
   <title>Админ-панель — IT Academy</title>
   <link rel="stylesheet" href="/style.css">
+  <style>
+    /* Таблице заявок нужно больше места: 9 колонок */
+    main .container { max-width: 1260px; }
+    .filters { grid-template-columns: 2fr 1.2fr 1.3fr 1.1fr auto; }
+    @media (max-width: 900px) { .filters { grid-template-columns: 1fr 1fr; } }
+  </style>
 </head>
 <body>
   <header class="header">
@@ -58,6 +64,7 @@
           <thead><tr><th>№</th><th>Дата</th><th>Студент</th><th>Курс и группа</th><th>Стоимость</th><th>Детали</th><th>Статус</th><th>Оплата</th><th></th></tr></thead>
           <tbody id="eRows"></tbody>
         </table></div>
+        <div class="pager" id="ePager" hidden></div>
       </section>
 
       <!-- КУРСЫ -->
@@ -66,10 +73,10 @@
           <h3 id="courseFormTitle">Новый курс</h3>
           <form class="panel-form" id="courseForm">
             <label>Название<input id="cTitle" maxlength="100" required></label>
-            <label>Цена, ₸<input id="cPrice" type="number" min="1" max="100000000" step="1000" required></label>
+            <label>Цена, ₸<input id="cPrice" type="number" min="1" max="100000000" step="1" inputmode="numeric" placeholder="например: 150000" required></label>
             <label>Длительность
-              <select id="cDuration" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #fff;">
-                <option value="" disabled selected>Ұзақтығын таңдаңыз</option>
+              <select id="cDuration" required>
+                <option value="" disabled selected>Выберите длительность</option>
                 <option value="1 месяц / 4 недели">1 месяц / 4 недели</option>
                 <option value="2 месяца / 8 недель">2 месяца / 8 недель</option>
                 <option value="3 месяца / 12 недель">3 месяца / 12 недель</option>
@@ -102,8 +109,8 @@
             <label>Курс<select id="gCourse" required></select></label>
             <label>Преподаватель<select id="gTeacher"></select></label>
             
-            <label class="wide">Сабақ күндері (апта күндерін таңдаңыз)
-              <div class="d-flex flex-wrap gap-3 mt-1" id="days-checkboxes" style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px;">
+            <label class="wide">Дни занятий
+              <div id="days-checkboxes" class="day-picker">
                 <label style="display:inline-flex; align-items:center; gap:4px; font-weight:normal;"><input class="schedule-day" type="checkbox" value="Пн"> Пн</label>
                 <label style="display:inline-flex; align-items:center; gap:4px; font-weight:normal;"><input class="schedule-day" type="checkbox" value="Вт"> Вт</label>
                 <label style="display:inline-flex; align-items:center; gap:4px; font-weight:normal;"><input class="schedule-day" type="checkbox" value="Ср"> Ср</label>
@@ -114,9 +121,9 @@
               </div>
             </label>
 
-            <label>Сабақ уақыты
-              <select id="gTimeSelect" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #fff;">
-                <option value="" disabled selected>Уақытын таңдаңыз</option>
+            <label>Время занятий
+              <select id="gTimeSelect">
+                <option value="" disabled selected>Выберите время</option>
                 <option value="09:00">09:00</option>
                 <option value="11:00">11:00</option>
                 <option value="15:00">15:00</option>
@@ -126,9 +133,9 @@
               </select>
             </label>
 
-            <!-- Жасырын поле для schedule_time -->
-            <input type="hidden" id="gSchedule" required>
-            <div class="wide" style="margin-bottom: 10px;"><small class="text-muted">Қалыптасқан кесте: <span id="schedule-preview" class="fw-bold text-primary" style="font-weight: bold; color: #2c3e50;">талдалмаған</span></small></div>
+            <!-- Скрытое поле schedule_time: заполняется из дней и времени -->
+            <input type="hidden" id="gSchedule">
+            <div class="wide schedule-preview">Расписание группы: <strong id="schedule-preview">не выбрано</strong></div>
 
             <label>Дата старта<input id="gStart" type="date" required></label>
             <label>Мест в группе<input id="gMax" type="number" min="1" max="200" value="15" required></label>
@@ -142,6 +149,13 @@
           <thead><tr><th>№</th><th>Курс</th><th>Расписание</th><th>Старт</th><th>Преподаватель</th><th>Места</th><th></th></tr></thead>
           <tbody id="gRows"></tbody>
         </table></div>
+
+        <h3 style="margin-top:32px">Структура: преподаватель → курс → группа → студенты</h3>
+        <div class="tree-tools">
+          <button class="button button--small button--ghost" type="button" data-tree-open="treeGroups">Развернуть всё</button>
+          <button class="button button--small button--ghost" type="button" data-tree-close="treeGroups">Свернуть всё</button>
+        </div>
+        <div class="tree" id="treeGroups"></div>
       </section>
 
       <!-- ПОЛЬЗОВАТЕЛИ -->
@@ -171,6 +185,15 @@
           <thead><tr><th>№</th><th>Имя</th><th>Контакты</th><th>Роль</th><th>Заявок / групп</th><th></th></tr></thead>
           <tbody id="uRows"></tbody>
         </table></div>
+
+        <div id="treeUsersWrap">
+          <h3 style="margin-top:32px">Преподаватели: курсы, группы и студенты</h3>
+          <div class="tree-tools">
+            <button class="button button--small button--ghost" type="button" data-tree-open="treeUsers">Развернуть всё</button>
+            <button class="button button--small button--ghost" type="button" data-tree-close="treeUsers">Свернуть всё</button>
+          </div>
+          <div class="tree" id="treeUsers"></div>
+        </div>
       </section>
     </div>
   </main>
@@ -194,9 +217,15 @@
       [].concat(kids || []).forEach(function (c) { if (c != null) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
       return e;
     }
+    // Для <select> с готовым списком: если сохранённого значения в списке нет («6 месяцев»), добавляем его вариантом
+    function setSelect(sel, value) {
+      if (value && ![].some.call(sel.options, function (o) { return o.value === value; })) sel.appendChild(new Option(value, value));
+      sel.value = value || '';
+    }
     function td(tr, content) { var c = h('td', {}, content === undefined ? [] : [content]); tr.appendChild(c); return c; }
     function two(main, sub) { return h('span', {}, [main, h('small', { text: sub || '' })]); }
     function money(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₸'; }
+    function shortMoney(n) { return n >= 1000000 ? (n / 1000000).toFixed(1).replace('.', ',') + ' млн ₸' : money(n); }
     function date(s) { var d = new Date(s + 'T00:00:00'); return isNaN(d) ? s : d.toLocaleDateString('ru-RU'); }
     function when(s) { var d = new Date(String(s).replace(' ', 'T') + 'Z'); return isNaN(d) ? s : d.toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }); }
     function msg(text, bad) { var m = $('#msg'); m.textContent = text; m.className = 'form-status ' + (bad ? 'error' : 'success'); }
@@ -220,7 +249,7 @@
       return api('/stats').then(function (j) {
         var d = j.data, t = $('#tiles'); t.textContent = '';
         [['Заявок на рассмотрении', d.pending], ['Всего заявок', d.enrollments], ['Студентов', d.students],
-         ['Преподавателей', d.teachers], ['Групп', d.groups], ['Оплачено', money(d.paid_revenue || 0)],
+         ['Преподавателей', d.teachers], ['Групп', d.groups], ['Оплачено', shortMoney(d.paid_revenue || 0)],
          ['Ждут оплаты', ((d.by_payment || {}).pending || 0) + ((d.by_payment || {}).unpaid || 0)]].forEach(function (x) {
           t.appendChild(h('div', { class: 'tile' }, [h('div', { class: 'stat__number', text: String(x[1]) }), h('div', { class: 'stat__label', text: x[0] })]));
         });
@@ -239,18 +268,34 @@
       if ($('#ePayment').value) p.set('payment_status', $('#ePayment').value);
       var s = p.toString(); return s ? '?' + s : '';
     }
+    var PAGE = 20, pageNo = 0;
+    function renderPager(total) {
+      var pages = Math.max(1, Math.ceil(total / PAGE)), box = $('#ePager'); box.textContent = '';
+      box.hidden = pages < 2; if (pageNo >= pages) pageNo = pages - 1;
+      function go(n) { pageNo = n; loadEnrollments().catch(fail); }
+      var prev = h('button', { type: 'button', class: 'button button--small button--ghost', text: '← Назад', disabled: pageNo === 0 });
+      var next = h('button', { type: 'button', class: 'button button--small button--ghost', text: 'Вперёд →', disabled: pageNo >= pages - 1 });
+      prev.addEventListener('click', function () { go(pageNo - 1); });
+      next.addEventListener('click', function () { go(pageNo + 1); });
+      box.appendChild(prev); box.appendChild(h('span', { text: 'Страница ' + (pageNo + 1) + ' из ' + pages })); box.appendChild(next);
+    }
     function loadEnrollments() {
       return api('/enrollments' + eFilters()).then(function (j) {
         var body = $('#eRows'); body.textContent = '';
-        $('#eCount').textContent = 'Показано: ' + j.data.length;
-        j.data.forEach(function (x) {
+        var from = Math.min(pageNo * PAGE, Math.max(0, Math.floor((j.data.length - 1) / PAGE) * PAGE));
+        pageNo = Math.floor(from / PAGE);
+        $('#eCount').textContent = 'Найдено: ' + j.data.length + (j.data.length > PAGE ? ' · показаны ' + (from + 1) + '–' + Math.min(from + PAGE, j.data.length) : '');
+        renderPager(j.data.length);
+        j.data.slice(from, from + PAGE).forEach(function (x) {
           var tr = h('tr');
-          td(tr, String(x.id)); td(tr, when(x.created_at));
+          td(tr, String(x.id));
+          var w = when(x.created_at).split(', '); td(tr, two(w[0], w[1] || '')).className = 'nowrap';
           var c = td(tr, h('span', {}, [x.student_name]));
+          c.className = 'nowrap';
           c.appendChild(h('small', {}, [h('a', { href: 'mailto:' + x.email, text: x.email })]));
           if (x.phone) c.appendChild(h('small', {}, [h('a', { href: 'tel:' + x.phone.replace(/[^\d+]/g, ''), text: x.phone })]));
           td(tr, two(x.course_title + (x.duration ? ' · ' + x.duration : ''), x.schedule_time + ' · старт ' + date(x.start_date) + ' · ' + (x.teacher_name || 'без преподавателя')));
-          td(tr, money(x.price));
+          td(tr, money(x.price)).className = 'nowrap';
           td(tr, two(x.level || '—', x.comment || ''));
           var sel = h('select', { class: 'status-select', title: 'Статус заявки ' + x.id });
           Object.keys(STATUS).forEach(function (k) { var o = new Option(STATUS[k], k); o.selected = k === x.status; sel.appendChild(o); });
@@ -280,8 +325,8 @@
       });
     }
     var timer;
-    $('#eq').addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(function () { loadEnrollments().catch(fail); }, 250); });
-    ['#eCourse', '#eStatus', '#ePayment'].forEach(function (s) { $(s).addEventListener('change', function () { loadEnrollments().catch(fail); }); });
+    $('#eq').addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(function () { pageNo = 0; loadEnrollments().catch(fail); }, 250); });
+    ['#eCourse', '#eStatus', '#ePayment'].forEach(function (s) { $(s).addEventListener('change', function () { pageNo = 0; loadEnrollments().catch(fail); }); });
     $('#export').addEventListener('click', function () {
       fetch('/api/admin/enrollments.csv' + eFilters(), { credentials: 'same-origin' }).then(function (r) {
         if (!r.ok) throw new Error('Не удалось скачать файл (' + r.status + ')');
@@ -302,13 +347,13 @@
         var body = $('#cRows'); body.textContent = '';
         j.data.forEach(function (c) {
           var tr = h('tr');
-          td(tr, String(c.id)); td(tr, two(c.title, c.description)); td(tr, c.duration || '—'); td(tr, money(c.price)); td(tr, c.catalog_id || '—');
+          td(tr, String(c.id)); td(tr, two(c.title, c.description)); td(tr, c.duration || '—'); td(tr, money(c.price)).className = 'nowrap'; td(tr, c.catalog_id || '—');
           td(tr, c.external_url ? h('a', { href: c.external_url, target: '_blank', rel: 'noopener noreferrer', text: c.provider || 'ссылка' }) : '—');
           td(tr, String(c.groups_count));
           var act = h('div', { class: 'row-actions' });
           var edit = h('button', { type: 'button', class: 'button button--small button--ghost', text: 'Изменить' });
           edit.addEventListener('click', function () {
-            state.editCourse = c.id; $('#cTitle').value = c.title; $('#cPrice').value = c.price; $('#cDuration').value = c.duration || ''; $('#cCatalog').value = c.catalog_id || ''; $('#cExternal').value = c.external_url || ''; $('#cProvider').value = c.provider || ''; $('#cDesc').value = c.description;
+            state.editCourse = c.id; $('#cTitle').value = c.title; $('#cPrice').value = c.price; setSelect($('#cDuration'), c.duration); $('#cCatalog').value = c.catalog_id || ''; $('#cExternal').value = c.external_url || ''; $('#cProvider').value = c.provider || ''; $('#cDesc').value = c.description;
             $('#courseFormTitle').textContent = 'Изменить курс №' + c.id; $('#cCancel').hidden = false; $('#cTitle').focus();
           });
           var del = h('button', { type: 'button', class: 'button button--small button--danger', text: 'Удалить' });
@@ -343,7 +388,7 @@
         previewSpan.textContent = combined;
         hiddenInput.value = combined;
       } else {
-        previewSpan.textContent = 'күндер мен уақытты толық таңдаңыз';
+        previewSpan.textContent = 'выберите дни и время';
         hiddenInput.value = '';
       }
     }
@@ -368,7 +413,7 @@
           var cb = document.querySelector('.schedule-day[value="' + d + '"]');
           if (cb) cb.checked = true;
         });
-        $('#gTimeSelect').value = timePart;
+        setSelect($('#gTimeSelect'), timePart);
       }
       updateSchedulePreview();
     }
@@ -378,7 +423,7 @@
       [].forEach.call(document.querySelectorAll('.schedule-day'), function(cb) { cb.checked = false; });
       $('#gTimeSelect').value = '';
       $('#gSchedule').value = '';
-      $('#schedule-preview').textContent = 'талдалмаған';
+      $('#schedule-preview').textContent = 'не выбрано';
       $('#groupFormTitle').textContent = 'Новая группа'; $('#gCancel').hidden = true;
     }
 
@@ -387,7 +432,7 @@
         var body = $('#gRows'); body.textContent = '';
         j.data.forEach(function (g) {
           var tr = h('tr');
-          td(tr, String(g.id)); td(tr, two(g.course_title, g.duration || '')); td(tr, g.schedule_time); td(tr, date(g.start_date)); td(tr, g.teacher_name || '— не назначен —');
+          td(tr, String(g.id)); td(tr, two(g.course_title, g.duration || '')); td(tr, g.schedule_time).className = 'nowrap'; td(tr, date(g.start_date)).className = 'nowrap'; td(tr, g.teacher_name || '— не назначен —');
           td(tr, two(g.approved_count + ' из ' + g.max_students, g.pending_count ? 'ожидают: ' + g.pending_count : ''));
           var act = h('div', { class: 'row-actions' });
           var edit = h('button', { type: 'button', class: 'button button--small button--ghost', text: 'Изменить' });
@@ -414,7 +459,7 @@
       updateSchedulePreview();
       var scheduleVal = $('#gSchedule').value;
       if (!scheduleVal) {
-        alert('Кем дегенде бір күн және сабақ уақытын міндетті түрде таңдаңыз!');
+        msg('Выберите хотя бы один день недели и время занятий.', true);
         return;
       }
       var payload = { course_id: Number($('#gCourse').value), teacher_id: $('#gTeacher').value, schedule_time: scheduleVal, start_date: $('#gStart').value, max_students: Number($('#gMax').value) };
@@ -474,9 +519,101 @@
       });
     }
 
+    // ---- дерево «преподаватель → курс → группа → студенты» (/api/admin/teachers/tree)
+    var treeData = null;
+    function pluralRu(n, a, b, c) { var m = n % 100, k = n % 10; return n + ' ' + (m > 10 && m < 20 ? c : k === 1 ? a : k > 1 && k < 5 ? b : c); }
+    function pill(text, cls) { return h('span', { class: 'pill ' + cls, text: text }); }
+
+    function treeStudents(g) {
+      if (!g.students.length) return h('p', { class: 'tree--empty', text: 'В этой группе пока нет студентов.' });
+      var body = h('tbody');
+      g.students.forEach(function (st, i) {
+        var tr = h('tr');
+        td(tr, String(i + 1));
+        td(tr, st.name);
+        td(tr, two(st.email, st.phone || ''));
+        td(tr, st.level || '—');
+        td(tr, pill(STATUS[st.status] || st.status, 'pill--' + st.status));
+        td(tr, pill(PAY[st.payment_status] || st.payment_status, 'pill--' + (st.payment_status === 'pending' ? 'payment-pending' : st.payment_status)));
+        body.appendChild(tr);
+      });
+      var head = h('tr', {}, ['№', 'Студент', 'Контакты', 'Уровень', 'Статус', 'Оплата'].map(function (t) { return h('th', { text: t }); }));
+      return h('div', { class: 'table-wrap' }, [h('table', { class: 'table' }, [h('thead', {}, [head]), body])]);
+    }
+    function treeGroup(g) {
+      var approved = g.students.filter(function (x) { return x.status === 'approved'; }).length;
+      return h('details', {}, [
+        h('summary', {}, [
+          h('b', { text: 'Группа №' + g.id + ' · ' + g.schedule_time }),
+          h('small', { text: 'старт ' + date(g.start_date) }),
+          pill('записано ' + approved + ' из ' + g.max_students, 'pill--approved'),
+          g.pending_count ? pill('ожидают: ' + g.pending_count, 'pill--pending') : null
+        ]),
+        h('div', { class: 'tree__body' }, [treeStudents(g)])
+      ]);
+    }
+    function treeCourse(c) {
+      return h('details', {}, [
+        h('summary', {}, [
+          h('b', { text: c.course_title }),
+          h('small', { text: [c.duration, c.price != null ? money(c.price) : ''].filter(Boolean).join(' · ') }),
+          h('small', { text: pluralRu(c.groups.length, 'группа', 'группы', 'групп') })
+        ]),
+        h('div', { class: 'tree__body' }, c.groups.map(treeGroup))
+      ]);
+    }
+    function treeTeacher(t, open) {
+      return h('details', { open: !!open }, [
+        h('summary', {}, [
+          h('b', { text: t.name }),
+          h('small', { text: t.email + (t.phone ? ' · ' + t.phone : '') }),
+          pill(pluralRu(t.courses.length, 'курс', 'курса', 'курсов'), 'pill--new'),
+          pill(pluralRu(t.groups_count, 'группа', 'группы', 'групп'), 'pill--new'),
+          pill(pluralRu(t.students_count, 'студент', 'студента', 'студентов'), 'pill--enrolled')
+        ]),
+        h('div', { class: 'tree__body' }, t.courses.length ? t.courses.map(treeCourse) : [h('p', { class: 'tree--empty', text: 'Группы этому преподавателю пока не назначены.' })])
+      ]);
+    }
+    function renderTree(box) {
+      box.textContent = '';
+      if (!treeData) return;
+      treeData.teachers.forEach(function (t) { box.appendChild(treeTeacher(t, true)); });
+      if (treeData.unassigned.length) {
+        var pseudo = { name: 'Без преподавателя', email: 'группы, которым преподаватель не назначен', phone: '', groups_count: treeData.unassigned.length, students_count: 0, courses: [] };
+        var byCourse = {};
+        treeData.unassigned.forEach(function (g) {
+          pseudo.students_count += g.students.length;
+          var c = byCourse[g.course_id] = byCourse[g.course_id] || { course_id: g.course_id, course_title: g.course_title, duration: g.duration, price: g.price, groups: [] };
+          c.groups.push(g);
+        });
+        pseudo.courses = Object.keys(byCourse).map(function (k) { return byCourse[k]; });
+        box.appendChild(treeTeacher(pseudo, false));
+      }
+      if (!box.children.length) box.appendChild(h('p', { class: 'tree--empty', text: 'Преподавателей и групп пока нет.' }));
+    }
+    function renderTrees() {
+      renderTree($('#treeGroups'));
+      renderTree($('#treeUsers'));
+      var f = $('#uFilter').value;
+      $('#treeUsersWrap').hidden = !(f === '' || f === 'teacher');   // под фильтром «Студенты»/«Администраторы» дерево не нужно
+    }
+    function loadTree() {
+      return api('/teachers/tree').then(function (j) {
+        treeData = { teachers: j.data || [], unassigned: j.unassigned_groups || [] };
+        renderTrees();
+      });
+    }
+    document.addEventListener('click', function (e) {
+      var o = e.target.closest('[data-tree-open]'), c = e.target.closest('[data-tree-close]');
+      var id = o ? o.getAttribute('data-tree-open') : c ? c.getAttribute('data-tree-close') : null;
+      if (!id) return;
+      [].forEach.call(document.querySelectorAll('#' + id + ' details'), function (d) { d.open = !!o; });
+    });
+    $('#uFilter').addEventListener('change', renderTrees);
+
     function refreshAll() {
       return Promise.all([loadStats(), loadCourses(), loadTeachers()])
-        .then(function () { return Promise.all([loadEnrollments(), loadGroups(), loadUsers()]); }).catch(fail);
+        .then(function () { return Promise.all([loadEnrollments(), loadGroups(), loadUsers(), loadTree()]); }).catch(fail);
     }
 
     $('#logout').addEventListener('click', function () { Auth.logout().then(function () { location.href = '/index.html'; }); });

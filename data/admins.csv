@@ -1,2 +1,0 @@
-﻿admin_id,full_name,email,password_hash
-1,Системалық әкімші,admin@example.com,scrypt:32768:8:1$R4GxoqyZVLHR0mgc$7930e07d6ab6bdc91dd0e4b247b4c8e680154dd0107de651061897aa61ec0fcc8e2ce9408a6a2ab42c6d3e29f8b5d95105c2fa7eeb4735c2907ab00cd9757a07

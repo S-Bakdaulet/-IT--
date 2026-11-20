@@ -32,6 +32,7 @@ import threading
 import time
 import urllib.request
 import analytics_data
+import llm
 from collections import defaultdict
 from contextlib import closing
 from datetime import datetime, timedelta
@@ -97,6 +98,7 @@ DEV_ORIGINS = [
     'null',
 ]
 ALLOWED_ORIGINS = set(DEV_ORIGINS)
+ALLOWED_ORIGINS.add('https://s-bakdaulet.github.io')   # статическая версия сайта (GitHub Pages)
 ALLOWED_ORIGINS.update(o.strip().rstrip('/') for o in os.environ.get('ALLOWED_ORIGINS', '').split(',') if o.strip())
 
 
@@ -319,6 +321,23 @@ def ensure_demo_data():
         conn.commit()
 
 
+def ensure_demo_accounts():
+    """SEED_ACCOUNTS=1: при первом запуске создаёт демо-аккаунты (@it-academy.kz), группы и заявки из таблиц analytics_*
+    (sync_site.py). Пароль задаётся переменной DEMO_PASSWORD. На рабочем сайте SEED_ACCOUNTS не задавайте."""
+    if os.environ.get('SEED_ACCOUNTS') != '1':
+        return
+    password = os.environ.get('DEMO_PASSWORD') or ''
+    if len(password) < 8:
+        print('SEED_ACCOUNTS=1 требует переменную DEMO_PASSWORD (от 8 символов): пароль в коде не хранится.')
+        return
+    try:
+        import sync_site
+        with closing(get_db()) as conn:
+            sync_site.seed(conn, password, only_if_empty=True)
+    except Exception as exc:
+        print('Демо-аккаунты не созданы:', exc)
+
+
 init_db()
 ensure_admin_from_env()
 ensure_demo_data()
@@ -335,6 +354,7 @@ def ensure_analytics():
 
 
 ensure_analytics()
+ensure_demo_accounts()   # после ensure_analytics(): аккаунты и группы строятся из таблиц analytics_*
 
 
 # --------------------------------------------------------------------------
@@ -1257,6 +1277,83 @@ def analytics_csv(name):
     return Response('\ufeff' + buf.getvalue(), mimetype='text/csv; charset=utf-8',
                     headers={'Content-Disposition': 'attachment; filename={}.csv'.format(name)})
 
+
+
+# --------------------------------------------------------------------------
+# ИИ-помощник: языковая модель (LLM) + база знаний сайта (RAG). Ключ только в переменных окружения.
+# --------------------------------------------------------------------------
+class RateLimiter:
+    def __init__(self, limit, window):
+        self.limit, self.window, self.hits, self.lock = limit, window, defaultdict(list), threading.Lock()
+
+    def hit(self, key):
+        now = time.time()
+        with self.lock:
+            q = [t for t in self.hits[key] if now - t < self.window]
+            if len(q) >= self.limit:
+                self.hits[key] = q
+                return False
+            q.append(now)
+            self.hits[key] = q
+            return True
+
+
+ai_limiter = RateLimiter(12, 60)       # 12 вопросов в минуту с одного адреса
+ai_daily = RateLimiter(400, 86400)     # общий потолок в сутки, чтобы не сжечь бесплатную квоту
+
+
+def live_facts():
+    """Актуальные курсы, группы и KPI из базы сайта."""
+    lines = []
+    try:
+        with closing(get_db()) as conn:
+            for c in conn.execute('SELECT title, duration, price, provider, external_url FROM Courses ORDER BY id'):
+                lines.append('Курс «%s»: %s ₸, %s%s' % (c['title'], c['price'], c['duration'],
+                                                       ', платформа Stepik' if c['external_url'] else ''))
+            n = conn.execute('SELECT COUNT(*) FROM Groups').fetchone()[0]
+            lines.append('Всего учебных групп на сайте: %s.' % n)
+            if analytics_data.is_loaded(conn):
+                k = analytics_data.kpi(conn)
+                lines.append('Аналитика заявок (учебный набор данных): ' + json.dumps(k, ensure_ascii=False, default=str)[:500])
+    except Exception:
+        pass
+    return '\n'.join(lines)
+
+
+@app.route('/api/ai/status')
+def ai_status():
+    return jsonify({'status': 'success', 'llm': llm.is_enabled(), 'model': llm.model_name()}), 200
+
+
+@app.route('/api/ai/chat', methods=['POST'])
+def ai_chat():
+    if not llm.is_enabled():
+        return jsonify({'status': 'error', 'message': 'LLM не настроена', 'llm': False}), 503
+    ip = request.remote_addr or 'unknown'
+    if not ai_limiter.hit(ip) or not ai_daily.hit('all'):
+        return jsonify({'status': 'error', 'message': 'Слишком много вопросов. Подождите минуту.'}), 429
+    data = request.get_json(silent=True) or {}
+    question = clean(data.get('question'), 500)
+    if len(question) < 2:
+        return jsonify({'status': 'error', 'message': 'Пустой вопрос'}), 400
+    ctx = data.get('context') if isinstance(data.get('context'), list) else []
+    ctx = [clean(x, 700) for x in ctx[:6] if isinstance(x, str)]
+    catalog = clean(data.get('catalog'), 4000)
+    history = []
+    for h in (data.get('history') if isinstance(data.get('history'), list) else [])[-6:]:
+        if isinstance(h, dict) and h.get('role') in ('user', 'assistant') and isinstance(h.get('text'), str):
+            history.append({'role': h['role'], 'text': clean(h['text'], 600)})
+    facts = '\n'.join(filter(None, [
+        'Каталог профессий:\n' + catalog if catalog else '',
+        'Актуальные данные с сервера:\n' + live_facts(),
+        'Найденные по смыслу фрагменты:\n' + '\n'.join('- ' + x for x in ctx) if ctx else ''
+    ]))
+    try:
+        text = llm.ask(question, facts, history)
+    except RuntimeError as e:
+        app.logger.warning('ai_chat: %s', e)
+        return jsonify({'status': 'error', 'message': 'Языковая модель сейчас недоступна', 'llm': True}), 502
+    return jsonify({'status': 'success', 'answer': text[:3000], 'model': llm.model_name()}), 200
 
 PROTECTED_PAGES = {'admin.html', 'teacher_dashboard.html'}
 STATIC_EXTENSIONS = {'.html', '.css', '.js', '.webp', '.png', '.jpg', '.jpeg', '.svg', '.ico', '.webmanifest',

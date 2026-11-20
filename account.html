@@ -27,6 +27,7 @@
       </div>
 
       <section id="studentArea" hidden>
+        <div class="stats" id="tiles" style="margin-bottom:28px"></div>
         <div id="approvedArea" hidden>
           <h3>Мои курсы</h3>
           <div class="cards" id="approvedCards" style="margin-bottom:32px"></div>
@@ -37,7 +38,7 @@
         <div class="table-wrap">
           <table class="table">
             <thead><tr>
-              <th>№</th><th>Курс</th><th>Длительность</th><th>Группа и расписание</th><th>Старт</th><th>Преподаватель</th><th>Стоимость</th><th>Статус</th><th>Оплата</th><th></th>
+              <th>№</th><th>Курс</th><th>Группа и расписание</th><th>Преподаватель</th><th>Стоимость</th><th>Статус</th><th>Оплата</th><th></th>
             </tr></thead>
             <tbody id="rows"></tbody>
           </table>
@@ -62,6 +63,10 @@
       tr.appendChild(c);
       return c;
     }
+    function two(main, sub) {
+      var e = document.createElement('span'), s = document.createElement('small');
+      e.appendChild(document.createTextNode(main)); s.textContent = sub; e.appendChild(s); return e;
+    }
     function date(s) { var d = new Date(s + 'T00:00:00'); return isNaN(d) ? s : d.toLocaleDateString('ru-RU'); }
     function money(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' ₸'; }
     function msg(text, bad) { var m = $('#msg'); m.textContent = text; m.className = 'form-status ' + (bad ? 'error' : 'success'); }
@@ -71,6 +76,60 @@
       s.textContent = label; d.appendChild(s); d.appendChild(document.createTextNode(value));
       return d;
     }
+
+    // «Пн/Ср/Пт 18:00» -> дни и время отдельно (если формат другой, показываем строку целиком)
+    function splitSchedule(text) {
+      var m = String(text || '').match(/^(.*?)\s*(\d{1,2}[:.]\d{2})\s*$/);
+      return m && m[1] ? { days: m[1], time: m[2].replace('.', ':') } : { days: String(text || '—'), time: '—' };
+    }
+
+    // Данные внешней платформы берём из публичного /api/courses (в /api/my-enrollments их нет); сопоставление по названию курса
+    var platforms = {};
+    function loadPlatforms() {
+      return Auth.courses().then(function (list) {
+        platforms = {};
+        list.forEach(function (c) { platforms[c.title] = c; });
+      }).catch(function () { platforms = {}; });   // не получилось — просто без кнопки, остальное работает
+    }
+    function platformName(c) {
+      return /stepik/i.test((c.provider || '') + ' ' + (c.external_url || '')) ? 'Stepik' : (c.provider || 'внешний сайт');
+    }
+    function platformLink(title, small) {
+      var c = platforms[title];
+      if (!c || !/^https?:\/\//i.test(c.external_url || '')) return null;
+      var a = document.createElement('a');
+      a.className = 'platform-btn' + (small ? ' platform-btn--small' : '');
+      a.href = c.external_url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      a.textContent = 'Перейти на платформу (' + platformName(c) + ') ↗';
+      return a;
+    }
+    function payPill(r) {
+      var p = document.createElement('span');
+      p.className = 'pill pill--' + (r.payment_status === 'pending' ? 'payment-pending' : r.payment_status);
+      p.textContent = PAY[r.payment_status] || r.payment_status;
+      return p;
+    }
+    function statusPill(r) {
+      var p = document.createElement('span');
+      p.className = 'pill pill--' + r.status;
+      p.textContent = LABELS[r.status] || r.status;
+      return p;
+    }
+
+    function renderTiles(list) {
+      var box = $('#tiles'); box.textContent = '';
+      var n = function (f) { return list.filter(f).length; };
+      [['Всего заявок', list.length],
+       ['Одобрено', n(function (r) { return r.status === 'approved'; })],
+       ['На рассмотрении', n(function (r) { return r.status === 'pending'; })],
+       ['Оплачено', n(function (r) { return r.payment_status === 'paid'; })]].forEach(function (x) {
+        var t = document.createElement('div'); t.className = 'tile';
+        var a = document.createElement('div'); a.className = 'stat__number'; a.textContent = String(x[1]);
+        var b = document.createElement('div'); b.className = 'stat__label'; b.textContent = x[0];
+        t.appendChild(a); t.appendChild(b); box.appendChild(t);
+      });
+    }
+
     // Карточки «Мои курсы»: всё, что нужно знать об одобренном курсе
     function renderApproved(items) {
       var box = $('#approvedCards'); box.textContent = '';
@@ -78,48 +137,52 @@
       items.forEach(function (r) {
         var card = document.createElement('article'); card.className = 'course-card';
         var h = document.createElement('h3'); h.textContent = r.course_title; card.appendChild(h);
-        var pill = document.createElement('span'); pill.className = 'pill pill--approved'; pill.textContent = 'Одобрена'; card.appendChild(pill);
+        var pills = document.createElement('div'); pills.className = 'pills';
+        pills.appendChild(statusPill(r)); pills.appendChild(payPill(r)); card.appendChild(pills);
+        var gl = document.createElement('p'); gl.className = 'group-line'; gl.textContent = 'Группа №' + r.group_id; card.appendChild(gl);
+
+        var sc = splitSchedule(r.schedule_time);
         var facts = document.createElement('div'); facts.className = 'facts';
-        facts.appendChild(fact('Расписание', r.schedule_time));
+        facts.appendChild(fact('Дни занятий', sc.days));
+        facts.appendChild(fact('Время', sc.time));
         facts.appendChild(fact('Старт', date(r.start_date)));
         facts.appendChild(fact('Длительность', r.duration || 'уточняется'));
         facts.appendChild(fact('Преподаватель', r.teacher_name || 'будет назначен'));
         facts.appendChild(fact('Стоимость', money(r.price)));
         facts.appendChild(fact('Оплата', PAY[r.payment_status] || r.payment_status));
         card.appendChild(facts);
+
+        var link = platformLink(r.course_title);
+        if (link) card.appendChild(link);
         box.appendChild(card);
       });
     }
 
     function load() {
-      return Auth.myEnrollments().then(function (list) {
+      return Promise.all([Auth.myEnrollments(), loadPlatforms()]).then(function (res) {
+        var list = res[0];
         var body = $('#rows');
         body.textContent = '';
+        renderTiles(list);
         renderApproved(list.filter(function (r) { return r.status === 'approved'; }));
         if (!list.length) {
           var tr = document.createElement('tr');
-          td(tr, 'Заявок пока нет. Выберите курс и группу на главной странице.').colSpan = 10;
+          td(tr, 'Заявок пока нет. Выберите курс и группу на главной странице.').colSpan = 8;
           body.appendChild(tr);
           return;
         }
         list.forEach(function (r) {
           var tr = document.createElement('tr');
           td(tr, r.id);
-          td(tr, r.course_title);
-          td(tr, r.duration || '—');
-          td(tr, r.schedule_time);
-          td(tr, date(r.start_date));
+          td(tr, two(r.course_title, 'Длительность: ' + (r.duration || 'уточняется')));
+          td(tr, two(r.schedule_time, 'группа №' + r.group_id + ' · старт ' + date(r.start_date)));
           td(tr, r.teacher_name || 'будет назначен');
-          td(tr, money(r.price));
-          var pill = document.createElement('span');
-          pill.className = 'pill pill--' + r.status;
-          pill.textContent = LABELS[r.status] || r.status;
-          td(tr, pill);
-          var pay = document.createElement('span');
-          pay.className = 'pill pill--' + (r.payment_status === 'pending' ? 'payment-pending' : r.payment_status);
-          pay.textContent = PAY[r.payment_status] || r.payment_status;
-          td(tr, pay);
+          td(tr, money(r.price)).className = 'nowrap';
+          td(tr, statusPill(r));
+          td(tr, payPill(r));
           var act = td(tr, '');
+          var link = r.status === 'rejected' ? null : platformLink(r.course_title, true);   // отклонённой заявке платформа не нужна
+          if (link) act.appendChild(link);
           if (r.status === 'pending') {
             var b = document.createElement('button');
             b.type = 'button'; b.className = 'button button--small button--danger'; b.textContent = 'Отозвать';

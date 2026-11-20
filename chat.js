@@ -60,7 +60,80 @@
   // ---------- Живые данные: группы и преподаватели с сервера (если он есть) ----------
   function apiBase() {
     const local = ['localhost', '127.0.0.1', ''].indexOf(location.hostname) !== -1;
+    if (window.IT_API_BASE) return String(window.IT_API_BASE).replace(/\/$/, '');
+    if (/\.github\.io$/.test(location.hostname)) return 'https://web-production-1842ea90.up.railway.app';   // на GitHub Pages сервер Flask стоит на Railway
     return (local && location.port !== '5000') ? 'http://127.0.0.1:5000' : '';
+  }
+
+  // ---------- Языковая модель (LLM) на сервере: включается, если на сервере задан ключ ----------
+  let llmOn = false;          // true, если сервер ответил, что LLM настроена
+  let llmChecked = false;
+  let extractorReady = false; // нейросеть-эмбеддинг уже загружена (для поиска по смыслу)
+  const history = [];         // последние реплики для контекста диалога
+  async function checkLLM() {
+    if (llmChecked) return;
+    llmChecked = true;
+    try {
+      const ctl = new AbortController();
+      const t = setTimeout(() => ctl.abort(), 5000);
+      const res = await fetch(apiBase() + '/api/ai/status', { signal: ctl.signal });
+      clearTimeout(t);
+      const j = res.ok ? await res.json() : null;
+      llmOn = !!(j && j.llm);
+    } catch (e) { llmOn = false; }
+    const sm = document.querySelector('#itChat .itc-head small');
+    if (sm) sm.textContent = llmOn ? 'Языковая модель + база знаний сайта' : 'Работает в браузере · данные сайта';
+    if (llmOn && !(navigator.connection && navigator.connection.saveData)) {
+      // в фоне готовим поиск по смыслу (эмбеддинги), чтобы подавать модели самые близкие фрагменты
+      setTimeout(() => { loadExtractor().then(() => { extractorReady = true; }).catch(() => {}); }, 1500);
+    }
+  }
+  const plain = (h) => String(h).replace(/<br\s*\/?>|<\/(p|li|div)>/g, '. ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+  function catalogText() {
+    return PROFS.map((p) => {
+      const c = course(p.id);
+      return p.title + ': ' + (p.tagline || '') + '; навыки: ' + (p.skills || []).slice(0, 6).join(', ') +
+        '; зарплата junior ' + p.salary.junior + ', middle ' + p.salary.middle + ', senior ' + p.salary.senior +
+        (c ? '; курс ' + c.price + ' тенге, ' + c.duration : '');
+    }).join(' | ');
+  }
+  function mdToHtml(t) {
+    const lines = esc(t).split(/\n/), out = [];
+    let ul = false;
+    lines.forEach((ln) => {
+      ln = ln.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      const m = /^\s*[-*•]\s+(.*)$/.exec(ln);
+      if (m) { if (!ul) { out.push('<ul>'); ul = true; } out.push('<li>' + m[1] + '</li>'); return; }
+      if (ul) { out.push('</ul>'); ul = false; }
+      if (ln.trim()) out.push('<p>' + ln.trim() + '</p>');
+    });
+    if (ul) out.push('</ul>');
+    return out.join('');
+  }
+  async function llmAnswer(question) {
+    const context = [];
+    let via = 'ключевые слова';
+    const rule = ruleAnswer(question, ctx);
+    if (rule && rule.html === HOWTO) return { html: HOWTO };
+    if (rule) { context.push(plain(rule.html).slice(0, 700)); if (rule.ids && rule.ids.length) ctx.prof = rule.ids[0]; }
+    if (extractorReady) {
+      try { const r = await semantic(question); r.topChunks.forEach((c) => context.push(c.text)); via = 'эмбеддинги нейросети'; } catch (e) { /* ниже ключевые слова */ }
+    }
+    if (via === 'ключевые слова') { const k = keywordSearch(question); if (k) context.push(k.ch.text); }
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 30000);
+    const res = await fetch(apiBase() + '/api/ai/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctl.signal,
+      body: JSON.stringify({ question: question, context: context, catalog: catalogText(), history: history.slice(-6) })
+    });
+    clearTimeout(t);
+    const j = await res.json().catch(() => null);
+    if (!res.ok || !j || !j.answer) throw new Error((j && j.message) || ('HTTP ' + res.status));
+    const ids = findProfs(norm(question));
+    if (ids.length) ctx.prof = ids[0];
+    history.push({ role: 'user', text: question }, { role: 'assistant', text: j.answer.slice(0, 600) });
+    return { html: mdToHtml(j.answer) + (ctx.prof ? openBtn(ctx.prof) : '') +
+      '<p class="itc-note">Ответ: языковая модель + база знаний сайта (поиск: ' + via + '). Проверяйте важные данные в каталоге.</p>' };
   }
   async function loadLive() {
     try {
@@ -207,20 +280,14 @@
     },
     {
       id: 'about', text: 'О проекте, что такое IT-Professions, для чего сайт, автор, тема сайта',
-      html: () => para('IT-Professions — учебный проект: каталог IT-профессий и курсов, сравнение, тест подбора, зарплаты, запись на курс, страница «Аналитика» и этот помощник. ' +
-        'Автор: Шәріпбаев Бақдәулет, Семей, 2026. Данные в аналитике учебные синтетические.')
-    },
-    {
-      id: 'analytics', text: 'Аналитика, дашборд Power BI, данные заявок, скачать набор данных, выводы',
-      html: () => para('Раздел «Аналитика» показывает дашборд Power BI по заявкам на курсы (по курсам, месяцам, статусам), три вывода и ссылки для скачивания набора данных. ' +
-        'Данные синтетические, это отмечено на странице.') + '<p><a href="analytics.html">Открыть аналитику</a></p>'
+      html: () => para('IT-Professions — учебный проект: каталог IT-профессий и курсов, сравнение, тест подбора, зарплаты, запись на курс и этот помощник. ' +
+        'Автор: Шәріпбаев Бақдәулет, Семей, 2026. Все данные учебные, синтетические.')
     }
   ];
 
-  const HOWTO = para('Я помощник сайта на нейросети, которая работает прямо в вашем браузере (Transformers.js, модель paraphrase-multilingual-MiniLM-L12-v2). ' +
-    'Вопрос и данные сайта (профессии, цены, зарплаты, навыки) превращаются в векторы, и я нахожу самые близкие по смыслу. ' +
-    'Простые вопросы («сколько стоит», «сравни») разбираю по правилам. Ответы собираются из данных сайта, поэтому я не выдумываю. ' +
-    'Ваш текст никуда не отправляется. Источник: <a href="https://huggingface.co/docs/transformers.js" target="_blank" rel="noopener">Transformers.js</a>, ' +
+  const HOWTO = para('Я помощник сайта, работаю в два слоя. <strong>1) Поиск по смыслу:</strong> нейросеть Transformers.js (модель paraphrase-multilingual-MiniLM-L12-v2) прямо в вашем браузере превращает вопрос и данные сайта (профессии, цены, зарплаты, навыки) в векторы и находит самые близкие фрагменты. ' +
+    '<strong>2) Языковая модель (LLM):</strong> если на сервере задан ключ, найденные фрагменты и актуальные данные из базы передаются модели, и она формулирует ответ на вашем языке, не выдумывая факты (схема RAG). Ключ хранится только на сервере, в переменных окружения, в коде его нет. ' +
+    'Если сервера или ключа нет, работает встроенная нейросеть и правила, и тогда ваш текст никуда не отправляется. Источники: <a href="https://huggingface.co/docs/transformers.js" target="_blank" rel="noopener">Transformers.js</a>, ' +
     '<a href="https://huggingface.co/Xenova/paraphrase-multilingual-MiniLM-L12-v2" target="_blank" rel="noopener">модель</a>.');
 
   // ---------- Правила намерений ----------
@@ -243,7 +310,6 @@
     if (/(как (записат|подат|оставит|оформ)|запис(ь|аться|ывайт)|заявк|тіркел|жазыл)/.test(t) && !/(зарплат|сколько)/.test(t)) return { html: FAQ[0].html() };
     if (/(оплат|платн|рассрочк|stepik|степик|как заплат)/.test(t)) return { html: FAQ[1].html() };
     if (/(аккаунт|логин|пароль|войти|вход\b|личн\S+ кабинет|регистрац)/.test(t)) return { html: FAQ[2].html() };
-    if (/(аналитик|дашборд|power ?bi|набор данных|датасет|скачать данные)/.test(t) && !ids.length) return { html: FAQ[4].html() };
     if (/(о проекте|для чего сайт|что за сайт|кто автор|автор сайта)/.test(t)) return { html: FAQ[3].html() };
 
     if (/(зарплат|зарабат|доход|оклад|жалақы|сколько получа|salary)/.test(t)) {
@@ -308,7 +374,7 @@
           }
         }
       });
-    })().catch((err) => { extractorPromise = null; corpus = null; throw err; });
+    })().then((x) => { extractorReady = true; return x; }).catch((err) => { extractorPromise = null; corpus = null; throw err; });
     return extractorPromise;
   }
 
@@ -368,7 +434,7 @@
     const sum = ex.reduce((a, b) => a + b, 0);
     const profRank = ids.map((k, j) => ({ id: k, cos: best[k], pct: Math.round((ex[j] / sum) * 100) })).sort((a, b) => b.cos - a.cos);
     sims.sort((a, b) => b.s - a.s);
-    return { top: CHUNKS[sims[0].i], topCos: sims[0].s, profRank: profRank };
+    return { top: CHUNKS[sims[0].i], topCos: sims[0].s, profRank: profRank, topChunks: sims.slice(0, 3).map((x) => CHUNKS[x.i]) };
   }
 
   // ---------- Запасной поиск по словам (если нейросеть недоступна) ----------
@@ -421,6 +487,10 @@
   const REC = /(посоветуй|подбери|подбор|помоги выбрать|что выбрать|какая профессия|какую профессию|кем стать|рекоменд|мне нравится|хочу|интересно|люблю|подойд|увлека|нравится|умею|занимаюсь|таңда|ұсын|қызық)/;
 
   async function answer(question) {
+    if (llmOn) {
+      try { const r = await llmAnswer(question); return r.html; }
+      catch (err) { if (window.console) console.warn('LLM недоступна, работает встроенная нейросеть:', err); }
+    }
     const rule = ruleAnswer(question, ctx);
     if (rule) {
       if (rule.ids && rule.ids.length) ctx.prof = rule.ids[0];
@@ -516,6 +586,7 @@
         add('bot', GREETING);
         chips.innerHTML = CHIPS.map((c) => '<button type="button" class="itc-chip">' + esc(c) + '</button>').join('');
         loadLive();
+        checkLLM();
       }
       setTimeout(() => input.focus(), 30);
     }

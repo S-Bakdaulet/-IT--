@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
-  <title>Мои группы — IT Academy</title>
+  <title>Мои курсы и группы — IT Academy</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -20,7 +20,7 @@
 
   <main class="section">
     <div class="container">
-      <h2 style="text-align:left" id="hello">Мои группы</h2>
+      <h2 style="text-align:left" id="hello">Мои курсы и группы</h2>
       <p class="section__lead" style="text-align:left;margin-left:0" id="meta">Загрузка…</p>
       <div class="form-status" id="msg" role="status" aria-live="polite" style="text-align:left"></div>
       <div class="stats" id="tiles" style="margin-bottom:28px"></div>
@@ -29,14 +29,6 @@
         <h3>Расписание недели</h3>
         <div class="week" id="week"></div>
         <p class="note" id="weekNote" style="text-align:left" hidden></p>
-      </div>
-
-      <div class="panel" id="overviewPanel" hidden>
-        <h3>Мои группы: обзор</h3>
-        <div class="table-wrap"><table class="table">
-          <thead><tr><th>Курс</th><th>Расписание</th><th>Старт</th><th>Записано</th><th>Ожидают</th></tr></thead>
-          <tbody id="overview"></tbody>
-        </table></div>
       </div>
 
       <div id="groups"></div>
@@ -49,6 +41,7 @@
     'use strict';
     var $ = function (s) { return document.querySelector(s); };
     var STATUS = { pending: 'Ожидает', approved: 'Записан' };
+    var PAY = { unpaid: 'Не оплачено', pending: 'В ожидании', paid: 'Оплачено' };
 
     function h(tag, props, kids) {
       var e = document.createElement(tag);
@@ -74,16 +67,28 @@
     }
     function count(g, status) { return g.students.filter(function (s) { return s.status === status; }).length; }
 
-    function renderOverview(groups) {
+    // Описание и ссылка на платформу — из публичного /api/courses (в /api/teacher/overview их нет); сопоставление по id курса
+    var catalog = {};
+    function platformName(c) { return /stepik/i.test((c.provider || '') + ' ' + (c.external_url || '')) ? 'Stepik' : (c.provider || 'внешний сайт'); }
+    function platformLink(c) {
+      if (!c || !/^https?:\/\//i.test(c.external_url || '')) return null;
+      return h('a', { class: 'platform-btn', href: c.external_url, target: '_blank', rel: 'noopener noreferrer', text: 'Перейти на платформу (' + platformName(c) + ') ↗' });
+    }
+
+    function allGroups(courses) {
+      return courses.reduce(function (acc, c) { return acc.concat(c.groups.map(function (g) { g.course_title = g.course_title || c.course_title; return g; })); }, []);
+    }
+
+    function renderTiles(t) {
       var tiles = $('#tiles'); tiles.textContent = '';
-      var approved = groups.reduce(function (n, g) { return n + count(g, 'approved'); }, 0);
-      var pending = groups.reduce(function (n, g) { return n + count(g, 'pending'); }, 0);
-      [['Групп', groups.length], ['Студентов записано', approved], ['Заявок ожидает', pending]].forEach(function (x) {
+      [['Курсов', t.courses], ['Групп', t.groups], ['Студентов', t.students], ['Записано', t.approved], ['Оплатили', t.paid]].forEach(function (x) {
         tiles.appendChild(h('div', { class: 'tile' }, [h('div', { class: 'stat__number', text: String(x[1]) }), h('div', { class: 'stat__label', text: x[0] })]));
       });
-      if (!groups.length) return;
+    }
 
-      // недельная сетка: дни и время берутся из текста расписания («Пн/Ср/Пт 18:00»)
+    // недельная сетка: дни и время берутся из текста расписания («Пн/Ср/Пт 18:00»)
+    function renderWeek(groups) {
+      if (!groups.length) return;
       var cols = DAYS.map(function () { return []; }), loose = [];
       groups.forEach(function (g) {
         var days = parseDays(g.schedule_time);
@@ -100,55 +105,63 @@
       });
       if (loose.length) {
         var n = $('#weekNote'); n.hidden = false;
-        n.textContent = 'Без привязки к дням недели (см. таблицу ниже): ' + loose.map(function (g) { return g.course_title + ' — ' + g.schedule_time; }).join('; ');
+        n.textContent = 'Без привязки к дням недели: ' + loose.map(function (g) { return g.course_title + ' — ' + g.schedule_time; }).join('; ');
       }
       $('#weekPanel').hidden = false;
-
-      var body = $('#overview'); body.textContent = '';
-      groups.forEach(function (g) {
-        var tr = h('tr'), st = startInfo(g.start_date);
-        td(tr, h('span', {}, [h('a', { href: '#group-' + g.id, text: g.course_title }), h('small', { text: g.duration ? 'Длительность: ' + g.duration : '' })]));
-        td(tr, g.schedule_time);
-        td(tr, h('span', {}, [date(g.start_date), h('small', {}, [h('span', { class: 'pill ' + st.cls, text: st.text })])]));
-        td(tr, count(g, 'approved') + ' из ' + g.max_students);
-        td(tr, String(count(g, 'pending')));
-        body.appendChild(tr);
-      });
-      $('#overviewPanel').hidden = false;
     }
 
-    function render(groups) {
+    function studentsTable(g) {
+      if (!g.students.length) return h('p', { class: 'note', style: 'text-align:left', text: 'В этой группе пока нет студентов.' });
+      var head = h('tr', {}, ['№', 'Студент', 'Телефон', 'Почта', 'Уровень', 'Статус', 'Оплата'].map(function (t) { return h('th', { text: t }); }));
+      var body = h('tbody');
+      g.students.forEach(function (s, i) {
+        var tr = h('tr');
+        td(tr, String(i + 1)); td(tr, s.name);
+        td(tr, s.phone ? h('a', { href: 'tel:' + s.phone.replace(/[^\d+]/g, ''), text: s.phone }) : '—');
+        td(tr, h('a', { href: 'mailto:' + s.email, text: s.email }));
+        td(tr, s.level || '—');
+        td(tr, h('span', { class: 'pill pill--' + s.status, text: STATUS[s.status] || s.status }));
+        td(tr, h('span', { class: 'pill pill--' + (s.payment_status === 'pending' ? 'payment-pending' : s.payment_status), text: PAY[s.payment_status] || s.payment_status }));
+        body.appendChild(tr);
+      });
+      return h('div', { class: 'table-wrap' }, [h('table', { class: 'table' }, [h('thead', {}, [head]), body])]);
+    }
+
+    function groupCard(g) {
+      var st = startInfo(g.start_date);
+      var card = h('div', { class: 'group-card', id: 'group-' + g.id });
+      card.appendChild(h('div', { class: 'group-card__head' }, [
+        h('h4', { text: 'Группа №' + g.id + ' · ' + g.schedule_time }),
+        h('span', { class: 'pill pill--approved', text: 'Записано: ' + count(g, 'approved') + ' из ' + g.max_students })
+      ]));
+      card.appendChild(h('p', { class: 'muted' }, [
+        'старт ' + date(g.start_date) + ' · ожидают: ' + count(g, 'pending') + ' ',
+        h('span', { class: 'pill ' + st.cls, text: st.text })
+      ]));
+      card.appendChild(studentsTable(g));
+      return card;
+    }
+
+    function render(data) {
       var root = $('#groups'); root.textContent = '';
-      if (!groups.length) {
-        root.appendChild(h('div', { class: 'group-card' }, [h('p', { class: 'muted', text: 'Вам пока не назначено ни одной группы. Обратитесь к администратору.' })]));
+      if (!data.courses.length) {
+        root.appendChild(h('div', { class: 'group-card' }, [h('p', { class: 'muted', text: 'Вам пока не назначено ни одного курса. Обратитесь к администратору.' })]));
         return;
       }
-      groups.forEach(function (g) {
-        var card = h('div', { class: 'group-card', id: 'group-' + g.id });
-        card.appendChild(h('div', { class: 'group-card__head' }, [
-          h('h3', { text: g.course_title }),
-          h('span', { class: 'pill pill--approved', text: 'Записано: ' + g.approved_count + ' из ' + g.max_students })
-        ]));
-        var st = startInfo(g.start_date);
-        card.appendChild(h('p', { class: 'muted' }, [g.schedule_time + ' · старт ' + date(g.start_date) + (g.duration ? ' · ' + g.duration : '') + ' ', h('span', { class: 'pill ' + st.cls, text: st.text })]));
-
-        if (!g.students.length) {
-          card.appendChild(h('p', { class: 'note', style: 'text-align:left', text: 'В этой группе пока нет студентов.' }));
-        } else {
-          var head = h('tr', {}, ['№', 'Студент', 'Телефон', 'Почта', 'Уровень / комментарий', 'Статус'].map(function (t) { return h('th', { text: t }); }));
-          var body = h('tbody');
-          g.students.forEach(function (s, i) {
-            var tr = h('tr');
-            td(tr, String(i + 1)); td(tr, s.name);
-            td(tr, s.phone ? h('a', { href: 'tel:' + s.phone.replace(/[^\d+]/g, ''), text: s.phone }) : '—');
-            td(tr, h('a', { href: 'mailto:' + s.email, text: s.email }));
-            td(tr, h('span', {}, [s.level || '—', h('small', { text: s.comment || '' })]));
-            td(tr, h('span', { class: 'pill pill--' + s.status, text: STATUS[s.status] || s.status }));
-            body.appendChild(tr);
-          });
-          card.appendChild(h('div', { class: 'table-wrap' }, [h('table', { class: 'table' }, [h('thead', {}, [head]), body])]));
-        }
-        root.appendChild(card);
+      data.courses.forEach(function (c) {
+        var info = catalog[c.course_id] || {};
+        var block = h('section', { class: 'course-block', id: 'course-' + c.course_id });
+        var left = h('div', {}, [
+          h('h3', { text: c.course_title }),
+          h('span', { class: 'muted', text: [c.duration ? 'Длительность: ' + c.duration : '', plural(c.groups.length, 'группа', 'группы', 'групп')].filter(Boolean).join(' · ') })
+        ]);
+        if (info.description) left.appendChild(h('p', { class: 'course-block__desc', text: info.description }));
+        var head = h('div', { class: 'course-block__head' }, [left]);
+        var link = platformLink(info);
+        if (link) head.appendChild(link);
+        block.appendChild(head);
+        c.groups.forEach(function (g) { block.appendChild(groupCard(g)); });
+        root.appendChild(block);
       });
     }
 
@@ -157,11 +170,17 @@
     Auth.me().then(function (u) {
       if (!u || u.role !== 'teacher') { location.href = '/teacher'; return; }
       $('#hello').textContent = 'Здравствуйте, ' + u.name.split(' ')[0] + '!';
-      return Auth.teacherGroups().then(function (groups) {
-        var total = groups.reduce(function (n, g) { return n + g.students.length; }, 0);
-        $('#meta').textContent = plural(groups.length, 'группа', 'группы', 'групп') + ', ' + plural(total, 'студент', 'студента', 'студентов') + '. Показаны только ваши группы.';
-        renderOverview(groups);
-        render(groups);
+      return Promise.all([
+        Auth.call('/api/teacher/overview'),
+        Auth.courses().catch(function () { return []; })
+      ]).then(function (res) {
+        var data = res[0].data;
+        res[1].forEach(function (c) { catalog[c.id] = c; });
+        var t = data.totals;
+        $('#meta').textContent = plural(t.courses, 'курс', 'курса', 'курсов') + ', ' + plural(t.groups, 'группа', 'группы', 'групп') + ', ' + plural(t.students, 'студент', 'студента', 'студентов') + '. Показаны только ваши курсы и группы.';
+        renderTiles(t);
+        renderWeek(allGroups(data.courses));
+        render(data);
       });
     }).catch(function (e) {
       $('#meta').textContent = '';

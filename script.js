@@ -46,7 +46,7 @@
   }
 
   // Статический режим: сайт открыт без Flask-сервера (например, на GitHub Pages).
-  // Каталог, ИИ-подбор и аналитика работают, а вход и заявки — только на сервере.
+  // Каталог и ИИ-подбор работают, а вход и заявки — только на сервере.
   function enterStaticMode() {
     store.noServer = true;
     const cfg = window.SITE_CONFIG || {};
@@ -265,6 +265,7 @@
           '<button class="card-btn" type="button" data-open="' + esc(p.id) + '">Подробнее</button>' +
           '<label class="compare-check"><input type="checkbox" data-compare="' + esc(p.id) + '"' + checked + '> Сравнить</label>' +
         '</div>' +
+        (platformLink(store.byCatalog[p.id]) ? '<div class="card__platform">' + platformLink(store.byCatalog[p.id]) + '</div>' : '') +
       '</div></article>';
   }
 
@@ -312,6 +313,17 @@
   // ---------- Подробности профессии ----------
   const detail = $('#detail');
   function fact(label, html) { return '<div><span>' + esc(label) + '</span>' + html + '</div>'; }
+
+  // Кнопка «Перейти на платформу (Stepik)»: только если у курса задана внешняя ссылка (https/http)
+  function platformName(c) {
+    const src = (c.provider || '') + ' ' + (c.external_url || '');
+    return /stepik/i.test(src) ? 'Stepik' : (c.provider || 'внешний сайт');
+  }
+  function platformLink(c, extraClass) {
+    if (!c || !/^https?:\/\//i.test(c.external_url || '')) return '';
+    return '<a class="platform-btn' + (extraClass ? ' ' + extraClass : '') + '" href="' + esc(c.external_url) +
+      '" target="_blank" rel="noopener noreferrer">Перейти на платформу (' + esc(platformName(c)) + ') ↗</a>';
+  }
 
   function groupsHtml(p) {
     const c = store.byCatalog[p.id];
@@ -364,6 +376,7 @@
       '<div class="modal__actions">' +
         '<button class="button" type="button" data-apply="' + esc(p.id) + '">' +
           'Записаться на курс</button>' +
+        platformLink(store.byCatalog[p.id]) +
         '<button class="button button--ghost" type="button" data-compare-toggle="' + esc(p.id) + '">' + (inCompare ? 'Убрать из сравнения' : 'Добавить к сравнению') + '</button>' +
       '</div>';
     openDialog(detail);

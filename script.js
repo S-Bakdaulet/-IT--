@@ -587,23 +587,62 @@
     statusEl.className = 'form-status ' + (kind || '');
   }
 
+  // Подпись пункта списка: «Название — цена · длительность»
+  function courseOption(c, note) {
+    return '<option value="' + c.id + '">' + esc(c.title) + ' — ' + money(c.price) + (c.duration ? ' · ' + esc(c.duration) : '') + (note || '') + '</option>';
+  }
+
   function fillCourseSelect() {
     if (!courseSel) return;
     const keep = courseSel.value;
-    // В форму попадают только курсы с группами; курсы с переходом на Stepik записывают через кнопку в каталоге
-    const payable = store.courses.filter((c) => !c.external_url);
-    courseSel.innerHTML = '<option value="" disabled selected>' + (store.courses.length ? 'Выберите курс' : store.noServer ? 'Доступно в серверной версии сайта' : 'Курсы недоступны: сервер не отвечает') + '</option>' +
-      payable.map((c) => '<option value="' + c.id + '">' + esc(c.title) + ' — ' + money(c.price) + (c.duration ? ' · ' + esc(c.duration) : '') + '</option>').join('');
+    const empty = store.courses.length ? 'Выберите курс' : store.noServer ? 'Доступно в серверной версии сайта' : 'Курсы недоступны: сервер не отвечает';
+    // В списке — все курсы. Курсы на внешней платформе (Stepik) идут отдельной группой: для них вместо записи в группу
+    // форма предлагает перейти на платформу. Раньше такие курсы скрывались, и при заданных ссылках у всех курсов список был пуст.
+    const own = store.courses.filter((c) => !c.external_url);
+    const ext = store.courses.filter((c) => c.external_url);
+    let html = '<option value="" disabled selected>' + esc(empty) + '</option>';
+    if (own.length) html += (ext.length ? '<optgroup label="Запись в группу">' : '') + own.map((c) => courseOption(c)).join('') + (ext.length ? '</optgroup>' : '');
+    if (ext.length) html += '<optgroup label="Обучение на платформе">' + ext.map((c) => courseOption(c, ' · ' + platformName(c))).join('') + '</optgroup>';
+    courseSel.innerHTML = html;
     if (keep && store.byId[keep]) courseSel.value = keep;
     fillGroups();
+  }
+
+  // Подсказка с кнопкой для курса на внешней платформе (создаётся один раз под полем «Группа»)
+  function platformHint() {
+    let box = $('#platformHint');
+    if (!box && groupSel) {
+      box = document.createElement('div');
+      box.id = 'platformHint';
+      box.className = 'platform-note';
+      box.hidden = true;
+      const label = groupSel.closest('label');
+      label.parentNode.insertBefore(box, label.nextSibling);
+    }
+    return box;
+  }
+  function showPlatformHint(c) {
+    const box = platformHint(); if (!box) return;
+    const btn = $('#submitBtn');
+    if (!c || !c.external_url) { box.hidden = true; box.textContent = ''; if (btn && !btn.disabled) btn.textContent = 'Отправить заявку'; return; }
+    box.textContent = 'Этот курс проходит на платформе ' + platformName(c) + ': запись в группу здесь не нужна. ';
+    box.insertAdjacentHTML('beforeend', platformLink(c, 'platform-btn--small'));
+    box.hidden = false;
+    if (btn && !btn.disabled) btn.textContent = 'Перейти на платформу (' + platformName(c) + ')';
   }
 
   function fillGroups(preselect) {
     if (!groupSel) return;
     const c = store.byId[courseSel.value];
+    showPlatformHint(c);
     if (!c) {
       groupSel.disabled = true;
       groupSel.innerHTML = '<option value="" disabled selected>Сначала выберите курс</option>';
+      return;
+    }
+    if (c.external_url) {
+      groupSel.disabled = true;
+      groupSel.innerHTML = '<option value="" disabled selected>Группа не нужна: обучение на платформе ' + esc(platformName(c)) + '</option>';
       return;
     }
     if (!c.groups.length) {
@@ -660,7 +699,8 @@
     function validate() {
       let ok = true;
       if (!courseSel.value) { setError('selectedCourse', 'Выберите курс.'); ok = false; }
-      if (!groupSel.value) { setError('selectedGroup', 'Выберите группу.'); ok = false; }
+      const picked = store.byId[courseSel.value];
+      if (!(picked && picked.external_url) && !groupSel.value) { setError('selectedGroup', 'Выберите группу.'); ok = false; }
       if (phone.value.replace(/\D/g, '').length !== 11) { setError('studentPhone', 'Введите номер полностью: +7 XXX XXX XX XX.'); ok = false; }
       if (!$('#consent').checked) { setError('consent', 'Нужно ваше согласие.'); ok = false; }
       return ok;
@@ -678,6 +718,12 @@
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       showStatus('', '');
+      const chosen = store.byId[courseSel.value];
+      if (chosen && chosen.external_url) {   // курс на внешней платформе: записи в группу нет, открываем платформу
+        redirectToPlatform(chosen);
+        showStatus('Курс проходит на платформе ' + platformName(chosen) + '. Если страница не открылась, нажмите кнопку «Перейти на платформу» выше.', 'success');
+        return;
+      }
       if (!validate()) {
         const bad = $('.invalid', form);
         if (bad) bad.focus();
